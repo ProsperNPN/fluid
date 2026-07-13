@@ -1,0 +1,43 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fluid-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fluid_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-fluid_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fluid_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fluid_user} -d ${POSTGRES_DB:-fluid_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: fluid-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-fluid_user}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-fluid_db}
+      - BACKEND_HOST=0.0.0.0
+      - BACKEND_PORT=8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-super-secret-key}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+    entrypoint: /app/backend/entrypoint.sh
+
+volumes:
+  fluid_postgres_data:
