@@ -149,7 +149,6 @@ export function InteractivePhoneDemoV2({ className }: InteractivePhoneDemoProps)
         transition={{ duration: 0.7, ease: 'easeOut' }}
       >
         <motion.div
-          whileHover={{ scale: 1.02, y: -4 }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
           className="relative mx-auto w-full"
         >
@@ -176,8 +175,6 @@ export function InteractivePhoneDemoV2({ className }: InteractivePhoneDemoProps)
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
-                whileHover={{ scale: 1.07 }}
-                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.25, ease: 'easeOut' }}
                 aria-label="Restart demo"
               >
@@ -206,10 +203,8 @@ export function InteractivePhoneDemoV2({ className }: InteractivePhoneDemoProps)
                   event.stopPropagation();
                   togglePlayback();
                 }}
-                className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/12 text-white/90 backdrop-blur-md opacity-0 transition duration-200 hover:opacity-100"
+                className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/12 text-white/90 backdrop-blur-md opacity-0   "
                 initial={{ opacity: 0, scale: 0.95 }}
-                whileHover={{ opacity: 1, scale: 1 }}
-                whileTap={{ scale: 0.96 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 aria-label="Pause demo"
               >

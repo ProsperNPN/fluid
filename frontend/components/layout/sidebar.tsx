@@ -16,7 +16,7 @@ export function Sidebar({ title, items, currentPath }: { title: string; items: S
             key={item.href}
             href={item.href}
             className={cn(
-              'block rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100',
+              'block rounded-lg px-3 py-2 text-sm text-slate-700  hover:bg-slate-100',
               currentPath === item.href && 'bg-fluid-50 font-medium text-fluid-700'
             )}
           >

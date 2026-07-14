@@ -82,7 +82,7 @@ export function HospitalShell({ children }: { children: ReactNode }) {
   const sidebar = <div className="flex h-full min-h-0 flex-col overflow-hidden">
     <div className="flex min-h-[94px] items-center justify-between border-b border-[#EAEAEA] px-6 py-5">
       <Link href="/hospital" aria-label="FLUID hospital overview" className="group flex min-w-0 items-center gap-3.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-red-200">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FDF2F2] p-1.5 shadow-sm ring-1 ring-red-100/80 transition duration-200 group-hover:scale-[1.03]"><FluidLogo className="h-full w-full object-contain" /></span>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FDF2F2] p-1.5 shadow-sm ring-1 ring-red-100/80   "><FluidLogo className="h-full w-full object-contain" /></span>
         <span className="min-w-0"><span className="block text-xl font-bold leading-tight tracking-[-0.03em] text-slate-950">FLUID</span><span className="mt-0.5 block whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.12em] text-slate-400">Hospital Workspace</span></span>
       </Link>
       <button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" onClick={() => setDrawerOpen(false)} aria-label="Close navigation"><X className="h-5 w-5" /></button>

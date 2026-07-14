@@ -93,7 +93,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex min-h-[94px] items-center justify-between border-b border-[#EAEAEA] px-6 py-5">
         <Link href="/donor" aria-label="FLUID donor overview" className="group flex min-w-0 items-center gap-3.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-red-200">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FDF2F2] p-1.5 shadow-sm ring-1 ring-red-100/80 transition-transform duration-200 ease-out group-hover:scale-[1.03]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#FDF2F2] p-1.5 shadow-sm ring-1 ring-red-100/80    ">
             <FluidLogo className="h-full w-full object-contain" />
           </span>
           <span className="min-w-0">
@@ -112,10 +112,10 @@ export function DonorShell({ children }: { children: ReactNode }) {
         })}
       </nav>
       <div className="border-t border-[#EAEAEA] p-4">
-        <div className="group rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-slate-300 hover:bg-white hover:shadow-md">
+        <div className="group rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
           <p className="text-sm font-semibold text-slate-900">Need help?</p>
           <p className="mt-1.5 text-xs leading-5 text-slate-500">Questions about donating or your account?</p>
-          <a href="mailto:support@fluid.health" className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-red-200 hover:bg-[#FDF2F2] hover:text-[#C0392B]">Contact Support</a>
+          <a href="mailto:support@fluid.health" className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm   hover:border-red-200 hover:bg-[#FDF2F2] hover:text-[#C0392B]">Contact Support</a>
         </div>
       </div>
     </div>
@@ -134,7 +134,7 @@ export function DonorShell({ children }: { children: ReactNode }) {
               <h1 className="truncate text-lg font-semibold text-slate-950 sm:text-xl">{meta.title}</h1>
               <p className="hidden truncate text-xs text-slate-500 sm:block">{meta.description}</p>
             </div>
-            <Link href="/donor/notifications" className="relative rounded-xl border border-slate-200 p-2.5 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50" aria-label="Notifications"><Bell className="h-5 w-5" />{unreadCount > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C0392B] px-1 text-[10px] font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</Link>
+            <Link href="/donor/notifications" className="relative rounded-xl border border-slate-200 p-2.5 text-slate-600  hover:border-slate-300 hover:bg-slate-50" aria-label="Notifications"><Bell className="h-5 w-5" />{unreadCount > 0 ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C0392B] px-1 text-[10px] font-bold text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</Link>
             <Link href="/" className="hidden text-sm font-medium text-slate-600 hover:text-[#C0392B] sm:block">Back to site</Link>
             <div className="relative">
               <button onClick={() => setProfileOpen((open) => !open)} className="flex items-center gap-2 rounded-xl p-1.5 text-left hover:bg-slate-50" aria-expanded={profileOpen}>

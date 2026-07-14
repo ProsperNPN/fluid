@@ -116,11 +116,11 @@ export function PhoneShowcase() {
                 <motion.div
                   key={feature.title}
                   variants={itemVariants}
-                  className="group rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]"
+                  className="group rounded-2xl border border-red-100/70 bg-[#FFF7F7] p-4 shadow-none backdrop-blur-sm"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                      <Icon className={`h-7 w-7 transition duration-300 group-hover:scale-110 ${feature.color}`} />
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-red-100/70 bg-[#FFF5F5] shadow-none">
+                      <Icon className={`h-7 w-7    ${feature.color}`} />
                     </div>
                     <div>
                       <h3 className="text-sm font-semibold text-slate-900 sm:text-[15px]">{feature.title}</h3>
@@ -161,15 +161,15 @@ export function PhoneShowcase() {
                 <motion.div
                   key={feature.title}
                   variants={itemVariants}
-                  className="group rounded-2xl border border-slate-200/80 bg-white/75 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.04)] backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,0.08)]"
+                  className="group rounded-2xl border border-red-100/70 bg-[#FFF7F7] p-4 shadow-none backdrop-blur-sm"
                 >
                   <div className="flex items-start gap-4">
                     <div>
                       <h3 className="text-sm font-semibold text-slate-900 sm:text-[15px]">{feature.title}</h3>
                       <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-[13px]">{feature.description}</p>
                     </div>
-                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-                      <Icon className={`h-7 w-7 transition duration-300 group-hover:scale-110 ${feature.color}`} />
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-red-100/70 bg-[#FFF5F5] shadow-none">
+                      <Icon className={`h-7 w-7    ${feature.color}`} />
                     </div>
                   </div>
                 </motion.div>

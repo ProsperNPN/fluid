@@ -115,9 +115,7 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
 
             <motion.button
               variants={itemVariants}
-              className="mt-6 w-full rounded-lg bg-red-500 py-3 font-semibold text-white transition hover:bg-red-600"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              className="mt-6 w-full rounded-lg bg-red-500 py-3 font-semibold text-white  hover:bg-red-600"
             >
               Sign In
             </motion.button>
@@ -200,7 +198,6 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
                 key={i}
                 className="rounded-xl border border-slate-200 p-4"
                 variants={itemVariants}
-                whileHover={{ scale: 1.02 }}
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -290,8 +287,7 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
 
             <motion.button
               variants={itemVariants}
-              className="w-full rounded-lg bg-red-500 py-3 font-semibold text-white transition hover:bg-red-600"
-              whileHover={{ scale: 1.02 }}
+              className="w-full rounded-lg bg-red-500 py-3 font-semibold text-white  hover:bg-red-600"
             >
               Request Donation
             </motion.button>
@@ -388,7 +384,6 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
             <motion.button
               variants={itemVariants}
               className="mt-8 rounded-lg bg-white px-8 py-3 font-semibold text-red-500 hover:bg-red-50"
-              whileHover={{ scale: 1.05 }}
             >
               Accept Request
             </motion.button>
@@ -430,7 +425,6 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
             <motion.button
               variants={itemVariants}
               className="mt-6 w-full rounded-lg bg-red-500 py-3 font-semibold text-white hover:bg-red-600"
-              whileHover={{ scale: 1.02 }}
             >
               Proceed to Booking
             </motion.button>
@@ -471,7 +465,6 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
             <motion.button
               variants={itemVariants}
               className="w-full rounded-lg bg-red-500 py-3 font-semibold text-white hover:bg-red-600"
-              whileHover={{ scale: 1.02 }}
             >
               Confirm Appointment
             </motion.button>

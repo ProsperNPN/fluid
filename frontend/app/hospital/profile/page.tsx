@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Building2, Crosshair, FileCheck2, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button'; import { EmptyState } from '@/components/ui/empty-state'; import { LoadingState } from '@/components/ui/loading-state'; import { getApiErrorMessage } from '@/lib/api'; import { getHospitalProfile, updateHospitalProfile } from '@/services/profile-service'; import type { HospitalProfile } from '@/types';
-const field = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[#C0392B] focus:ring-2 focus:ring-red-100';
+const field = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none  focus:border-[#C0392B] focus:ring-2 focus:ring-red-100';
 export default function HospitalProfilePage() { const [profile, setProfile] = useState<HospitalProfile | null>(null); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [locating, setLocating] = useState(false); const [error, setError] = useState<string | null>(null);
  const load = useCallback(async () => { setLoading(true); setError(null); try { setProfile(await getHospitalProfile()); } catch (e) { setError(getApiErrorMessage(e, 'Unable to load the hospital profile.')); } finally { setLoading(false); } }, []); useEffect(() => { void load(); }, [load]);
  const change = <K extends keyof HospitalProfile>(key: K, value: HospitalProfile[K]) => setProfile((current) => current ? { ...current, [key]: value } : current);

@@ -11,7 +11,7 @@ import { getDonorProfile, updateDonorProfile } from '@/services/profile-service'
 import type { DonorProfile } from '@/types';
 
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
-const fieldClass = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-[#C0392B] focus:ring-2 focus:ring-red-100';
+const fieldClass = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none  focus:border-[#C0392B] focus:ring-2 focus:ring-red-100';
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<DonorProfile | null>(null);

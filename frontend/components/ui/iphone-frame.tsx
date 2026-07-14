@@ -12,7 +12,6 @@ export function iPhoneFrame({ children, isPlaying, className }: iPhoneFrameProps
   return (
     <motion.div
       className={cn('relative w-full select-none', className)}
-      whileHover={{ scale: 1.02, y: -4 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
     >
       <div className="relative mx-auto aspect-[430/932] w-full max-w-[430px]">

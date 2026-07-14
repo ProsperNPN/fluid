@@ -30,7 +30,6 @@ export function InteractivePhoneDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentScreenIndex, setCurrentScreenIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isHovering, setIsHovering] = useState(false);
   const animationRef = useRef<number>();
   const startTimeRef = useRef<number | undefined>(undefined);
   const pausedTimeRef = useRef<number>(0);
@@ -101,8 +100,6 @@ export function InteractivePhoneDemo() {
     <div
       ref={containerRef}
       className="relative flex items-center justify-center"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
     >
       <motion.div onClick={handlePhoneClick} className="cursor-pointer">
         <IPhoneFrame isPlaying={isPlaying}>
@@ -115,30 +112,28 @@ export function InteractivePhoneDemo() {
       {/* Play/Pause Button */}
       <motion.button
         onClick={handlePlayPause}
-        className="absolute inset-0 mx-auto my-auto h-20 w-20 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/40 transition flex items-center justify-center"
+        className="absolute inset-0 mx-auto my-auto h-20 w-20 rounded-full bg-black/30 backdrop-blur-sm hover:bg-black/40  flex items-center justify-center"
         animate={{
-          opacity: isHovering && !isPlaying ? 1 : isPlaying ? 0 : 0.7,
+          opacity: isPlaying ? 0 : 0.7,
           pointerEvents: isPlaying ? 'none' : 'auto'
         }}
-        whileHover={!isPlaying ? { scale: 1.1 } : {}}
         transition={{ duration: 0.2 }}
       >
         <motion.div
           className="relative flex items-center justify-center"
-          animate={isHovering && !isPlaying ? { scale: 1 } : { scale: 0.9 }}
+          animate={{ scale: 0.9 }}
           transition={{ duration: 0.2 }}
         >
           {/* Ripple effect */}
           <motion.div
             className="absolute inset-0 rounded-full border-2 border-white"
-            animate={{ scale: isHovering && !isPlaying ? [1, 1.2] : 1, opacity: isHovering && !isPlaying ? [0.5, 0] : 0 }}
-            transition={{ duration: 0.8, repeat: isHovering && !isPlaying ? Infinity : 0 }}
+            animate={{ scale: 1, opacity: 0 }}
           />
 
           {/* Glow */}
           <motion.div
             className="absolute inset-0 rounded-full bg-white/20 blur-lg"
-            animate={{ scale: isHovering && !isPlaying ? 1.2 : 1 }}
+            animate={{ scale: 1 }}
             transition={{ duration: 0.3 }}
           />
 
@@ -176,7 +171,7 @@ export function InteractivePhoneDemo() {
       {/* Demo status text */}
       <motion.div
         className="absolute bottom-0 -translate-y-20 text-center text-xs text-slate-500"
-        animate={{ opacity: isHovering ? 1 : 0.6 }}
+        animate={{ opacity: 0.6 }}
         transition={{ duration: 0.2 }}
       >
         <p>Click to {isPlaying ? 'pause' : 'play'}</p>

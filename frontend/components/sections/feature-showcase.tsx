@@ -121,7 +121,7 @@ export function FeatureShowcase() {
                 >
                   <div className="flex items-start gap-4">
                     <div className="mt-1 flex h-12 w-12 items-center justify-center rounded-xl bg-red-50">
-                      <Icon className={`h-6 w-6 transition duration-300 group-hover:scale-110 ${feature.color}`} />
+                      <Icon className={`h-6 w-6    ${feature.color}`} />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-sm font-semibold text-slate-900">{feature.title}</h3>
@@ -167,7 +167,7 @@ export function FeatureShowcase() {
                       <p className="mt-1 text-xs text-slate-600">{feature.description}</p>
                     </div>
                     <div className="mt-1 flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-slate-50">
-                      <Icon className={`h-6 w-6 transition duration-300 group-hover:scale-110 ${feature.color}`} />
+                      <Icon className={`h-6 w-6    ${feature.color}`} />
                     </div>
                   </div>
                 </motion.div>

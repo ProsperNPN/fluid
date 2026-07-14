@@ -58,13 +58,6 @@ textarea {
 }
 
 @layer components {
-  .icon-hover {
-    @apply transition-all duration-200 ease-out;
-  }
-  
-  .icon-hover:hover {
-    @apply scale-110;
-  }
 }
 
 @keyframes dashboard-in {
@@ -73,7 +66,7 @@ textarea {
 }
 
 .animate-dashboard-in {
-  animation: dashboard-in 260ms ease-out both;
+  animation: dashboard-in 260ms  both;
 }
 
 @media (prefers-reduced-motion: reduce) {

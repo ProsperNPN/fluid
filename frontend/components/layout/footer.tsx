@@ -9,16 +9,16 @@ export function Footer() {
           <p>Modern healthcare SaaS experience • Privacy-first roadmap</p>
         </div>
         <div className="flex items-center gap-4 border-t border-slate-200/50 pt-4">
-          <a href="#privacy" className="group flex items-center gap-1.5 text-slate-600 transition duration-200 hover:text-slate-900">
-            <Shield className="h-4 w-4 text-slate-400 transition duration-200 group-hover:scale-110" />
+          <a href="#privacy" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
+            <Shield className="h-4 w-4 text-slate-400   " />
             Privacy
           </a>
-          <a href="#terms" className="group flex items-center gap-1.5 text-slate-600 transition duration-200 hover:text-slate-900">
-            <FileText className="h-4 w-4 text-slate-400 transition duration-200 group-hover:scale-110" />
+          <a href="#terms" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
+            <FileText className="h-4 w-4 text-slate-400   " />
             Terms
           </a>
-          <a href="mailto:hello@fluid.health" className="group flex items-center gap-1.5 text-slate-600 transition duration-200 hover:text-slate-900">
-            <Mail className="h-4 w-4 text-slate-400 transition duration-200 group-hover:scale-110" />
+          <a href="mailto:hello@fluid.health" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
+            <Mail className="h-4 w-4 text-slate-400   " />
             Contact
           </a>
         </div>
