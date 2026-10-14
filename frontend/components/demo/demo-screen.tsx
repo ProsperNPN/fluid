@@ -74,9 +74,9 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
               animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
             >
-              <FluidLogo className="h-20 w-auto" />
+              <FluidLogo variant="icon-only" className="h-10" />
             </motion.div>
-            <h1 className="text-3xl font-bold text-white">FLUID</h1>
+            <FluidLogo tone="dark" variant="compact" />
             <p className="mt-2 text-sm text-white/80">Blood Donation Platform</p>
           </motion.div>
         </motion.div>
@@ -95,7 +95,7 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
           <motion.div className="flex flex-1 flex-col items-center justify-center" variants={containerVariants}>
             <motion.div variants={itemVariants} className="mb-8 text-center">
               <div className="mx-auto mb-4 flex items-center justify-center">
-                <FluidLogo className="h-14 w-auto" />
+                <FluidLogo variant="icon-only" className="h-10" />
               </div>
               <h2 className="text-2xl font-bold text-slate-900">Welcome to FLUID</h2>
             </motion.div>
@@ -136,8 +136,7 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
           <div className="border-b border-slate-100 px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <FluidLogo className="h-7 w-auto" />
-                <span className="text-sm font-bold tracking-[0.02em] text-slate-900">FLUID</span>
+                <FluidLogo variant="compact" className="h-7 text-[28px]" />
               </div>
               <span className="text-xs font-semibold text-slate-900">9:41</span>
             </div>
@@ -559,8 +558,7 @@ export function DemoScreen({ screenType, isVisible }: DemoScreenProps) {
           <div className="border-b border-slate-100 px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <FluidLogo className="h-7 w-auto" />
-                <span className="text-sm font-bold tracking-[0.02em] text-slate-900">FLUID</span>
+                <FluidLogo variant="compact" className="h-7 text-[28px]" />
               </div>
               <span className="text-xs font-semibold text-slate-900">9:41</span>
             </div>

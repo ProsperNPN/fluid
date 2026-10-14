@@ -14,7 +14,7 @@ async def test_read_me_success(client: AsyncClient, auth_headers) -> None:
 @pytest.mark.asyncio
 async def test_read_me_unauthorized(client: AsyncClient) -> None:
     response = await client.get("/api/v1/users/me")
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,7 @@ async def test_protected_profile_success(client: AsyncClient, auth_headers) -> N
 @pytest.mark.asyncio
 async def test_protected_profile_unauthorized(client: AsyncClient) -> None:
     response = await client.get("/api/v1/protected/profile")
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -47,4 +47,4 @@ async def test_admin_audit_regular_user_forbidden(client: AsyncClient, auth_head
 @pytest.mark.asyncio
 async def test_admin_audit_unauthorized(client: AsyncClient) -> None:
     response = await client.get("/api/v1/protected/admin/audit")
-    assert response.status_code == 403
+    assert response.status_code == 401

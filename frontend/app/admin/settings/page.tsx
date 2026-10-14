@@ -1,0 +1,1 @@
+import{EmptyState}from'@/components/ui/empty-state';export default function Page(){return <EmptyState title="Platform settings" description="Security-sensitive settings remain environment controlled."/>}

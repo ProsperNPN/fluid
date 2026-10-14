@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_hospital_context, require_hospital_operator
 from app.core.database import get_db
 from app.models import BloodRequest, HospitalMembership, User
 from app.schemas.analytics import AnalyticsOverviewRead
@@ -27,9 +27,11 @@ async def get_analytics_overview(
         if not current_user.is_superuser:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
     elif scope == "hospital":
-        hospital_id = (await db.execute(select(HospitalMembership.hospital_profile_id).where(HospitalMembership.user_id == current_user.id, HospitalMembership.is_active.is_(True)))).scalar_one_or_none()
+        context = await require_hospital_operator(await get_hospital_context(db, current_user))
+        hospital_id = context.hospital.id
         requests_stmt = requests_stmt.where(BloodRequest.hospital_profile_id == hospital_id)
 
+    if scope == "donor": raise HTTPException(status_code=403, detail="Use your personal donor overview")
     total_requests, open_requests, urgent_requests, filled_requests = (await db.execute(requests_stmt)).one()
 
     blood_type_stmt = (

@@ -78,6 +78,14 @@ async def require_hospital_admin(context: HospitalContext = Depends(get_hospital
 
 
 async def require_hospital_operator(context: HospitalContext = Depends(get_hospital_context)) -> HospitalContext:
+    if context.hospital.verification_status != "verified":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Approved hospital verification required for operations")
     if context.membership.role not in {"hospital_admin", "blood_bank_manager", "hospital_staff"}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Hospital operations access required")
+    return context
+
+
+async def require_verified_hospital_admin(context: HospitalContext = Depends(require_hospital_admin)) -> HospitalContext:
+    if context.hospital.verification_status != "verified":
+        raise HTTPException(status_code=403, detail="Approved hospital verification required")
     return context

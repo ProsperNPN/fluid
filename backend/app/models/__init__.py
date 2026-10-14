@@ -11,5 +11,7 @@ from app.models.notification import Notification
 from app.models.hospital_membership import HospitalMembership
 from app.models.blood_inventory import BloodInventory
 from app.models.audit_log import AuditLog
+from app.models.conversation import Conversation, Message
+from app.models.hospital_verification import HospitalVerification, HospitalVerificationDocument, HospitalVerificationReview
 
-__all__ = ["Base", "User", "RefreshToken", "PasswordResetToken", "BloodRequest", "DonorProfile", "HospitalProfile", "Appointment", "DonorResponse", "Notification", "HospitalMembership", "BloodInventory", "AuditLog"]
+__all__ = ["Base", "User", "RefreshToken", "PasswordResetToken", "BloodRequest", "DonorProfile", "HospitalProfile", "Appointment", "DonorResponse", "Notification", "HospitalMembership", "BloodInventory", "AuditLog", "HospitalVerification", "HospitalVerificationDocument", "HospitalVerificationReview"]

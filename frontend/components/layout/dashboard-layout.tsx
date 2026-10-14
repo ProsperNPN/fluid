@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { FluidLogo } from '@/components/brand/fluid-logo';
 import { Sidebar, type SidebarItem } from '@/components/layout/sidebar';
 import { getDefaultAuthenticatedRoute, resolveDashboardRole, type DashboardRole, useRequireAuth } from '@/hooks/use-auth';
 import { LoadingState } from '@/components/ui/loading-state';
@@ -75,7 +76,7 @@ export function DashboardLayout({
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div>
-            <p className="text-sm text-slate-500">FLUID Dashboard</p>
+            <Link href="/"><FluidLogo variant="compact" className="h-7 text-[28px]" /></Link>
             <h1 className="text-lg font-semibold text-slate-900">{title}</h1>
           </div>
           <div className="flex items-center gap-3 text-sm">

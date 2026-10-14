@@ -72,3 +72,58 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .animate-dashboard-in { animation: none; }
 }
+
+/* FLUID brand: one restrained double beat, then rest. */
+@layer components {
+.fluid-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  height: 36px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  color: #182233;
+  font-size: 36px;
+}
+.fluid-logo--dark { color: #fff; }
+.fluid-logo--compact { gap: 0.22em; height: 30px; font-size: 30px; }
+.fluid-logo--icon-only { width: auto; aspect-ratio: 1; }
+.fluid-logo__symbol { display: block; height: 100%; width: auto; aspect-ratio: 1; flex-shrink: 0; overflow: visible; }
+.fluid-logo__wordmark {
+  font-family: var(--font-brand), Poppins, ui-sans-serif, sans-serif;
+  font-size: 0.66em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+.fluid-logo__heart { transform-box: fill-box; transform-origin: center; }
+.fluid-logo__drop { transform-box: fill-box; transform-origin: center bottom; }
+.fluid-logo--animated .fluid-logo__heart { animation: fluid-heartbeat 1100ms ease-in-out 180ms both; }
+.fluid-logo--animated .fluid-logo__drop { animation: fluid-drop-in 600ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both; }
+.fluid-logo--animated .fluid-logo__wordmark { animation: fluid-wordmark-in 650ms ease-out 260ms both; }
+@keyframes fluid-heartbeat {
+  0%, 35%, 70%, 100% { transform: scale(1); }
+  18% { transform: scale(1.075); }
+  50% { transform: scale(1.045); }
+}
+@keyframes fluid-hover-beat {
+  0%, 35%, 70%, 100% { transform: scale(1); }
+  18% { transform: scale(1.06); }
+  50% { transform: scale(1.035); }
+}
+@keyframes fluid-drop-in {
+  from { opacity: 0; transform: translateY(-2px) scale(0.85); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fluid-wordmark-in { from { opacity: 0; } to { opacity: 1; } }
+@media (hover: hover) {
+  .fluid-logo--animated:hover .fluid-logo__heart,
+  a:hover > .fluid-logo--animated .fluid-logo__heart { animation: fluid-hover-beat 1000ms ease-in-out both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fluid-logo--animated .fluid-logo__heart,
+  .fluid-logo--animated .fluid-logo__drop,
+  .fluid-logo--animated .fluid-logo__wordmark { animation: none !important; }
+}
+
+}

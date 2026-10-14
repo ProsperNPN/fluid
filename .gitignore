@@ -8,6 +8,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .env
+backend/private_uploads/
 .env.local
 .DS_Store
 .idea/

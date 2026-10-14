@@ -7,9 +7,12 @@ BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
 
 class DonorProfileRead(BaseModel):
+    blood_type_verified: bool = False
+    policy_approved: bool = False
     id: str
     user_id: str
     blood_type: BloodType
+    blood_type_known: bool = False
     city: str
     availability: str
     full_name: str | None = None
@@ -39,7 +42,9 @@ class DonorProfileRead(BaseModel):
 
 
 class DonorProfileUpdate(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     blood_type: BloodType
+    blood_type_known: bool = False
     city: str = Field(min_length=2, max_length=120)
     full_name: str = Field(min_length=2, max_length=255)
     phone: str | None = Field(default=None, max_length=40)
@@ -85,6 +90,7 @@ class HospitalProfileRead(BaseModel):
     ownership_type: str | None
     region: str | None
     country: str
+    postal_code: str | None
     latitude: float | None
     longitude: float | None
     official_email: str | None
@@ -94,7 +100,7 @@ class HospitalProfileRead(BaseModel):
     operating_hours: str | None
     authorized_representative: str | None
     verification_document_url: str | None
-    verification_status: Literal["pending", "verified", "rejected", "suspended"]
+    verification_status: Literal["incomplete", "pending", "more_information_required", "verified", "rejected", "suspended"]
     member_role: str
     created_at: datetime
     updated_at: datetime
@@ -103,6 +109,7 @@ class HospitalProfileRead(BaseModel):
 
 
 class HospitalProfileUpdate(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     hospital_name: str = Field(min_length=2, max_length=255)
     city: str = Field(min_length=2, max_length=120)
     address: str = Field(min_length=2, max_length=255)
@@ -112,6 +119,7 @@ class HospitalProfileUpdate(BaseModel):
     ownership_type: Literal["public", "private", "nonprofit"] | None = None
     region: str | None = Field(default=None, max_length=120)
     country: str = Field(default="Ghana", min_length=2, max_length=120)
+    postal_code: str | None = Field(default=None, max_length=40)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     official_email: str | None = Field(default=None, max_length=255)

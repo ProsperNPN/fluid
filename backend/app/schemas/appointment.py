@@ -22,6 +22,7 @@ class AppointmentSchedule(BaseModel):
     contact_person: str | None = Field(default=None, max_length=160)
     internal_notes: str | None = Field(default=None, max_length=1000)
 class AppointmentStatusUpdate(BaseModel):
+    screening_confirmed: bool = False
     status: Literal["confirmed", "completed", "cancelled", "missed"]
     internal_notes: str | None = Field(default=None, max_length=1000)
 class AppointmentPageRead(BaseModel):

@@ -1,8 +1,10 @@
 from __future__ import annotations
 from datetime import datetime, timezone, timedelta
 from math import asin, cos, radians, sin, sqrt
-from app.models import BloodRequest, DonorProfile
+from app.core.config import settings
 
+# Referral matching only. Crossmatching and clinical clearance belong to the hospital.
+# Sources: Canadian Blood Services ABO compatibility guide; WHO donor selection.
 COMPATIBLE_RECIPIENTS = {
     "O-": {"O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"},
     "O+": {"O+", "A+", "B+", "AB+"},
@@ -10,30 +12,53 @@ COMPATIBLE_RECIPIENTS = {
     "B-": {"B-", "B+", "AB-", "AB+"}, "B+": {"B+", "AB+"},
     "AB-": {"AB-", "AB+"}, "AB+": {"AB+"},
 }
+PLASMA_RECIPIENTS = {"AB": {"O", "A", "B", "AB"}, "A": {"A", "O"}, "B": {"B", "O"}, "O": {"O"}}
 
 
-def can_donate_to(donor_type: str, requested_type: str) -> bool:
-    return requested_type in COMPATIBLE_RECIPIENTS.get(donor_type, set())
+def can_donate_to(donor_type: str, requested_type: str, component: str = "red_cells") -> bool:
+    if donor_type not in COMPATIBLE_RECIPIENTS or requested_type not in COMPATIBLE_RECIPIENTS:
+        return False
+    if component == "red_cells":
+        return requested_type in COMPATIBLE_RECIPIENTS[donor_type]
+    if component == "plasma":
+        return requested_type[:-1] in PLASMA_RECIPIENTS[donor_type[:-1]]
+    # Conservative identical-group referrals for whole blood/platelets. No substitutions.
+    if component in {"whole_blood", "platelets"}:
+        return donor_type == requested_type
+    return False
 
 
-def distance_km(lat1: float | None, lon1: float | None, lat2: float | None, lon2: float | None) -> float | None:
+def distance_km(lat1, lon1, lat2, lon2):
     if None in (lat1, lon1, lat2, lon2): return None
     d_lat, d_lon = radians(lat2 - lat1), radians(lon2 - lon1)
     value = sin(d_lat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
-    return round(6371 * 2 * asin(sqrt(value)), 1)
+    return round(6371 * 2 * asin(sqrt(min(1, max(0, value)))), 1)
 
 
-def is_donor_eligible(profile: DonorProfile, now: datetime | None = None) -> bool:
+def next_eligible_date(profile):
+    return profile.last_donation_date + timedelta(days=settings.DONATION_INTERVAL_DAYS) if profile.last_donation_date else None
+
+
+def is_donor_eligible(profile, now=None):
     now = now or datetime.now(timezone.utc)
-    if not profile.is_available or not profile.is_eligible: return False
-    return not profile.last_donation_date or profile.last_donation_date + timedelta(days=56) <= now.date()
+    if not settings.DONATION_POLICY_APPROVED or not profile.is_eligible or not getattr(profile, "blood_type_known", False): return False
+    dob = getattr(profile, "date_of_birth", None)
+    if not dob: return False
+    age = now.year - dob.year - ((now.month, now.day) < (dob.month, dob.day))
+    if not settings.DONOR_MIN_AGE <= age <= settings.DONOR_MAX_AGE: return False
+    next_date = next_eligible_date(profile)
+    return not next_date or next_date <= now.date()
 
 
-def match_request(profile: DonorProfile, request: BloodRequest, now: datetime | None = None) -> tuple[bool, float | None]:
+def match_request(profile, request, now=None):
     now = now or datetime.now(timezone.utc)
-    if request.status not in {"published", "partially_fulfilled"} or (request.expires_at and request.expires_at <= now): return False, None
-    if not is_donor_eligible(profile, now) or not can_donate_to(profile.blood_type, request.blood_type): return False, None
+    expiry = request.expires_at
+    if expiry and expiry.tzinfo is None: expiry = expiry.replace(tzinfo=timezone.utc)
+    if request.status not in {"published", "partially_fulfilled"} or (expiry and expiry <= now): return False, None
+    if not getattr(request, "hospital_verified", False) or not profile.is_available: return False, None
+    if not is_donor_eligible(profile, now) or not can_donate_to(profile.blood_type, request.blood_type, request.component): return False, None
     distance = distance_km(profile.latitude, profile.longitude, request.latitude, request.longitude)
     if distance is not None and distance > profile.preferred_radius_km: return False, distance
-    if distance is None and profile.city and profile.city.lower() not in request.location.lower(): return False, None
+    # Manual coordinates are supported. Without coordinates, never invent a nearby distance.
+    if distance is None: return False, None
     return True, distance

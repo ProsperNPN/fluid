@@ -28,5 +28,5 @@ class User(Base):
     )
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
-    password_reset_tokens = relationship("PasswordResetToken", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     blood_requests = relationship("BloodRequest", back_populates="created_by", cascade="all, delete-orphan")

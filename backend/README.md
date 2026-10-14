@@ -60,3 +60,33 @@ docker-compose up --build
 
 # Migrations run automatically on backend container startup
 ```
+
+## Super Admin bootstrap and recovery
+
+Public registration only accepts donor and hospital roles. Create the single initial
+Super Admin from the backend directory with:
+
+```powershell
+python -m app.scripts.create_super_admin
+```
+
+The command privately prompts for full name, email, password, and password
+confirmation. It refuses to create another account when a Super Admin already
+exists. Sign in through `/auth/login`; the account is redirected to `/admin`.
+
+Reset the Super Admin password without placing it in source code, environment
+files, command history, or logs:
+
+```powershell
+python -m app.scripts.reset_super_admin_password
+```
+
+The reset command prompts privately for the new password and confirmation and
+records the action in the audit log.
+
+Hospital verification documents are stored under `VERIFICATION_UPLOAD_DIR`, which
+must remain private and must not be served as a static directory. Access is only
+through authenticated hospital-verification endpoints. Configure notification
+delivery with the `ADMIN_VERIFICATION_EMAIL` and `SMTP_*` environment variables.
+
+Portal workflows, clinical configuration, permissions and local setup: [Portal implementation](../docs/PORTAL_IMPLEMENTATION.md).

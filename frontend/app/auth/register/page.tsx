@@ -42,6 +42,12 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accountType, setAccountType] = useState<'Donor' | 'Hospital'>('Donor');
 
+  useEffect(() => {
+    const role = new URLSearchParams(window.location.search).get('role');
+    if (role === 'hospital') setAccountType('Hospital');
+    else if (role === 'donor') setAccountType('Donor');
+  }, []);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);

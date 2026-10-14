@@ -1,96 +1,50 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Heart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowUpRight, Menu, X } from 'lucide-react';
+import { FluidLogo } from '@/components/brand/fluid-logo';
 
 const links = [
-  { href: '#solution', label: 'Solution' },
-  { href: '#hospitals', label: 'Hospitals' },
-  { href: '#donors', label: 'Donors' },
-  { href: '#analytics', label: 'Analytics' },
-  { href: '#faq', label: 'FAQ' }
+  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'donors', label: 'For Donors' },
+  { id: 'hospitals', label: 'For Hospitals' },
+  { id: 'story', label: 'Our Story' },
+  { id: 'contact', label: 'Contact' },
 ];
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
-
+  const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const [active, setActive] = useState('');
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const scroll = () => setCompact(window.scrollY > 32);
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); }
+    };
+    scroll();
+    window.addEventListener('scroll', scroll, { passive: true });
+    window.addEventListener('keydown', escape);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting);
+      if (visible.length) setActive(visible[0].target.id);
+    }, { rootMargin: '-15% 0px -55% 0px', threshold: 0 });
+    links.forEach(({ id }) => { const section = document.getElementById(id); if (section) observer.observe(section); });
+    return () => { observer.disconnect(); window.removeEventListener('scroll', scroll); window.removeEventListener('keydown', escape); };
+  }, []);
   return (
-    <header className="fixed inset-x-0 top-8 z-50 px-5 sm:px-8">
-      <div className="mx-auto flex h-14 w-full max-w-[980px] items-center rounded-[18px] border border-white/[0.12] bg-[rgba(22,28,45,0.76)] px-2.5 shadow-[0_12px_28px_rgba(2,6,23,0.28)] backdrop-blur-[22px]  sm:px-2.5">
-        <Link href="/" className="inline-flex flex-shrink-0 items-center gap-2.5 lg:min-w-[168px]">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-[12px] bg-[#C0392B]">
-            <Heart className="h-5 w-5 fill-white text-white" />
-          </span>
-          <span className="text-[15px] font-bold tracking-[0.02em] text-white">Fluid</span>
-        </Link>
-        <nav className="hidden flex-1 items-center justify-center gap-8 text-[13px] font-medium tracking-[0.01em] text-white/90 lg:flex">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="group relative    hover:text-white"
-            >
-              {link.label}
-              <span className="pointer-events-none absolute -bottom-1 left-0 h-px w-0 bg-white/85   " />
-            </a>
-          ))}
-          <Link href="/auth/login" className="group relative    hover:text-white">
-            Sign In
-            <span className="pointer-events-none absolute -bottom-1 left-0 h-px w-0 bg-white/85   " />
-          </Link>
-        </nav>
-        <div className="hidden flex-shrink-0 items-center lg:flex lg:min-w-[168px] lg:justify-end">
-          <Link href="/auth/register">
-            <Button className="group flex h-10 items-center gap-1.5 rounded-[12px] bg-[#C0392B] px-6 py-2 text-[13px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(192,57,43,0.3)]    hover:bg-[#A93226] ">
-              Get Started
-            </Button>
-          </Link>
-        </div>
-
-        <button
-          type="button"
-          aria-label="Toggle navigation menu"
-          aria-expanded={isOpen}
-          onClick={() => setIsOpen((value) => !value)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 text-white/90  hover:bg-white/10 lg:hidden"
-        >
-          <span className="text-sm leading-none">{isOpen ? '×' : '☰'}</span>
-        </button>
+    <header className={`public-nav ${compact ? 'public-nav--compact' : ''}`}>
+      <div className="public-container public-nav__inner">
+        <Link href="/" aria-label="FLUID home" onClick={() => setOpen(false)}><FluidLogo className="h-8 text-[32px] md:h-10 md:text-[40px]" /></Link>
+        <nav className="public-nav__desktop" aria-label="Main navigation">{links.map(({ id, label }) => <Link key={id} href={`/#${id}`} aria-current={active === id ? 'location' : undefined}>{label}</Link>)}</nav>
+        <div className="public-nav__actions"><Link className="public-sign-in" href="/auth/login">Sign In</Link><Link className="public-button public-button--small" href="/auth/register">Get Started <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+        <button ref={trigger} className="public-menu-button" type="button" aria-label={open ? 'Close navigation' : 'Open navigation'} aria-controls="public-mobile-menu" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? <X size={22} /> : <Menu size={22} />}</button>
       </div>
-
-      {isOpen && (
-        <div className="mx-auto mt-2.5 w-full max-w-[980px] rounded-2xl border border-white/10 bg-[rgba(22,28,45,0.76)] p-2.5 shadow-[0_12px_28px_rgba(2,6,23,0.28)] backdrop-blur-[22px] lg:hidden">
-          <nav className="flex flex-col gap-1.5">
-            {links.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsOpen(false)}
-                className="rounded-lg px-3 py-1.5 text-[13px] font-medium tracking-[0.01em] text-white/90   hover:bg-white/10 hover:text-white"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-
-          <div className="mt-2.5 flex items-center gap-2">
-            <Link
-              href="/auth/login"
-              onClick={() => setIsOpen(false)}
-              className="inline-flex h-9 flex-1 items-center justify-center rounded-full border border-white/15 px-3 py-2 text-[13px] font-medium tracking-[0.01em] text-white/[0.85]   hover:bg-white/10 hover:text-white"
-            >
-              Sign In
-            </Link>
-            <Link href="/auth/register" onClick={() => setIsOpen(false)} className="flex-1">
-              <Button className="group flex h-9 w-full items-center justify-center gap-1.5 rounded-[12px] bg-[#C0392B] px-5 py-2 text-[13px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_6px_16px_rgba(192,57,43,0.3)]    hover:bg-[#A93226] ">
-                Get Started
-              </Button>
-            </Link>
-          </div>
-        </div>
-      )}
+      {open && <nav id="public-mobile-menu" className="public-mobile-menu public-container" aria-label="Mobile navigation">
+        {links.map(({ id, label }) => <Link key={id} href={`/#${id}`} onClick={() => setOpen(false)} aria-current={active === id ? 'location' : undefined}>{label}<ArrowUpRight size={16} aria-hidden="true" /></Link>)}
+        <div><Link href="/auth/login" onClick={() => setOpen(false)}>Sign In</Link><Link className="public-button" href="/auth/register" onClick={() => setOpen(false)}>Get Started <ArrowUpRight size={16} /></Link></div>
+      </nav>}
     </header>
   );
 }

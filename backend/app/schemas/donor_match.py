@@ -26,6 +26,9 @@ class DonorMatchPageRead(BaseModel):
     total_pages: int
 
 class CompatibleRequestRead(BaseModel):
+    component: str = "whole_blood"
+    urgency: str = "routine"
+    required_by: datetime | None = None
     id: str
     hospital_name: str
     hospital_verified: bool

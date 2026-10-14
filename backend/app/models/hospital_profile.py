@@ -24,6 +24,7 @@ class HospitalProfile(Base):
     ownership_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     region: Mapped[str | None] = mapped_column(String(120), nullable=True)
     country: Mapped[str] = mapped_column(String(120), nullable=False, default="Ghana", server_default="Ghana")
+    postal_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     official_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -33,7 +34,7 @@ class HospitalProfile(Base):
     operating_hours: Mapped[str | None] = mapped_column(String(255), nullable=True)
     authorized_representative: Mapped[str | None] = mapped_column(String(255), nullable=True)
     verification_document_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    verification_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", server_default="pending", index=True)
+    verification_status: Mapped[str] = mapped_column(String(40), nullable=False, default="incomplete", server_default="incomplete", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

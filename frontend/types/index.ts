@@ -47,6 +47,9 @@ export interface NotificationItem {
 }
 
 export interface DonorProfile {
+  bloodTypeKnown: boolean;
+  bloodTypeVerified: boolean;
+  policyApproved: boolean;
   id: string;
   userId: string;
   bloodType: BloodType;
@@ -86,6 +89,7 @@ export interface HospitalProfile {
   ownershipType: 'public' | 'private' | 'nonprofit' | null;
   region: string | null;
   country: string;
+  postalCode: string | null;
   latitude: number | null;
   longitude: number | null;
   officialEmail: string | null;
@@ -95,6 +99,6 @@ export interface HospitalProfile {
   operatingHours: string | null;
   authorizedRepresentative: string | null;
   verificationDocumentUrl: string | null;
-  verificationStatus: 'pending' | 'verified' | 'rejected' | 'suspended';
+  verificationStatus: 'incomplete' | 'pending' | 'more_information_required' | 'verified' | 'rejected' | 'suspended';
   memberRole: string;
 }

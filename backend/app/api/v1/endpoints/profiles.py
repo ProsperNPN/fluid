@@ -5,7 +5,11 @@ from app.api.deps import HospitalContext, get_current_user, get_hospital_context
 from app.core.database import get_db
 from app.models import User
 from app.repositories import ProfileRepository
-from datetime import timedelta
+from datetime import date
+from sqlalchemy import select, func
+from app.models import Appointment
+from app.core.config import settings
+from app.services.blood_matching import is_donor_eligible, next_eligible_date
 
 from app.schemas.profile import DonorAvailabilityUpdate, DonorLocationUpdate, DonorProfileRead, DonorProfileUpdate, HospitalProfileRead, HospitalProfileUpdate
 
@@ -13,11 +17,12 @@ router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 
 def _donor_profile_read(profile, user: User) -> DonorProfileRead:
-    completed = [profile.blood_type, profile.phone, profile.date_of_birth, profile.city, profile.address, profile.region, profile.country, profile.latitude, profile.longitude, profile.emergency_contact]
+    completed = [profile.blood_type if profile.blood_type_known else None, profile.phone, profile.date_of_birth, profile.city, profile.address, profile.region, profile.country, profile.latitude, profile.longitude, profile.emergency_contact]
     completion = round(sum(value is not None and value != "" for value in completed) / len(completed) * 100)
-    next_eligible = profile.last_donation_date + timedelta(days=56) if profile.last_donation_date else None
+    next_eligible = next_eligible_date(profile)
     return DonorProfileRead(
-        **{column.name: getattr(profile, column.name) for column in profile.__table__.columns},
+        **{column.name: getattr(profile, column.name) for column in profile.__table__.columns if column.name != "is_eligible"},
+        is_eligible=is_donor_eligible(profile), policy_approved=settings.DONATION_POLICY_APPROVED,
         full_name=user.full_name,
         email=user.email,
         next_eligible_date=next_eligible,
@@ -57,8 +62,17 @@ async def update_my_donor_profile(
     if not profile:
         profile = await repository.create_donor_profile(user_id=current_user.id)
 
+    if payload.date_of_birth and payload.date_of_birth >= date.today():
+        raise HTTPException(status_code=422, detail="Date of birth must be in the past")
+    if payload.last_donation_date and payload.last_donation_date > date.today():
+        raise HTTPException(status_code=422, detail="Last donation date cannot be in the future")
+    recorded = (await db.execute(select(func.max(Appointment.completed_at)).where(Appointment.donor_user_id == current_user.id, Appointment.status == "completed"))).scalar_one_or_none()
+    if recorded and (not payload.last_donation_date or payload.last_donation_date < recorded.date()):
+        raise HTTPException(status_code=409, detail="A hospital-recorded donation date cannot be removed or moved earlier")
+    if profile.blood_type != payload.blood_type or not payload.blood_type_known:
+        profile.blood_type_verified = False
     current_user.full_name = payload.full_name
-    for field, value in payload.model_dump(exclude={"full_name"}).items():
+    for field, value in payload.model_dump(exclude={"full_name", "is_eligible"}).items():
         setattr(profile, field, value)
     profile.availability = "Available to donate" if payload.is_available else "Temporarily unavailable"
 
@@ -107,7 +121,9 @@ async def update_my_hospital_profile(
     context: HospitalContext = Depends(require_hospital_admin),
 ) -> HospitalProfileRead:
     profile = context.hospital
+    identity_changed = any(getattr(profile, field) != getattr(payload, field) for field in ["hospital_name", "registration_number", "address", "city", "country"])
     for field, value in payload.model_dump().items(): setattr(profile, field, value)
+    if identity_changed and profile.verification_status == "verified": profile.verification_status = "more_information_required"
 
     await db.commit()
     await db.refresh(profile)

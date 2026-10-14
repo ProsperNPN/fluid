@@ -2,7 +2,7 @@ import asyncio
 from typing import AsyncGenerator
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -13,33 +13,27 @@ from app.models import Base, User
 from app.core.database import get_db
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
-async def test_db_engine():
-    test_database_url = settings.DATABASE_URL.replace(
-        "postgresql+asyncpg://", "postgresql+asyncpg://test_"
-    )
-    engine = create_async_engine(test_database_url, echo=False, future=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
-
-
 @pytest.fixture(scope="function")
-async def db_session(test_db_engine) -> AsyncGenerator[AsyncSession, None]:
-    async_session = sessionmaker(bind=test_db_engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session() as session:
-        yield session
-        await session.rollback()
+async def db_session():
+    # Each test owns an isolated PostgreSQL schema; existing application data is untouched.
+    from uuid import uuid4
+    from sqlalchemy import text
+    schema = "fluid_test_" + uuid4().hex
+    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    async with engine.begin() as conn:
+        await conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+    isolated = create_async_engine(settings.DATABASE_URL, echo=False, connect_args={"server_settings": {"search_path": schema}})
+    try:
+        async with isolated.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with AsyncSession(bind=isolated, expire_on_commit=False) as session:
+            yield session
+    finally:
+        await isolated.dispose()
+        assert schema.startswith("fluid_test_") and len(schema) == 43
+        async with engine.begin() as conn:
+            await conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        await engine.dispose()
 
 
 @pytest.fixture
@@ -59,7 +53,7 @@ def app(override_get_db):
 
 @pytest.fixture
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 
@@ -94,7 +88,7 @@ async def test_superuser(db_session: AsyncSession) -> User:
 
 
 @pytest.fixture
-async def auth_headers(client: AsyncClient) -> dict[str, str]:
+async def auth_headers(client: AsyncClient, test_user) -> dict[str, str]:
     response = await client.post(
         "/api/v1/auth/login",
         json={"email": "test@example.com", "password": "test-password-123"},
@@ -104,7 +98,7 @@ async def auth_headers(client: AsyncClient) -> dict[str, str]:
 
 
 @pytest.fixture
-async def admin_headers(client: AsyncClient) -> dict[str, str]:
+async def admin_headers(client: AsyncClient, test_superuser) -> dict[str, str]:
     response = await client.post(
         "/api/v1/auth/login",
         json={"email": "admin@example.com", "password": "admin-password-123"},

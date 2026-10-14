@@ -1,28 +1,15 @@
-import { Shield, FileText, Mail } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
+import { FluidLogo } from '@/components/brand/fluid-logo';
 
 export function Footer() {
-  return (
-    <footer className="border-t border-slate-200/80 bg-white/80">
-      <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-4 py-8 text-[13px] text-slate-600 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 FLUID. Intelligent coordination for life-saving blood donation.</p>
-          <p>Modern healthcare SaaS experience • Privacy-first roadmap</p>
-        </div>
-        <div className="flex items-center gap-4 border-t border-slate-200/50 pt-4">
-          <a href="#privacy" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
-            <Shield className="h-4 w-4 text-slate-400   " />
-            Privacy
-          </a>
-          <a href="#terms" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
-            <FileText className="h-4 w-4 text-slate-400   " />
-            Terms
-          </a>
-          <a href="mailto:hello@fluid.health" className="group flex items-center gap-1.5 text-slate-600   hover:text-slate-900">
-            <Mail className="h-4 w-4 text-slate-400   " />
-            Contact
-          </a>
-        </div>
-      </div>
-    </footer>
-  );
+  return <footer className="public-footer"><div className="public-container">
+    <div className="public-footer__grid">
+      <div><Link href="/" aria-label="FLUID home"><FluidLogo variant="compact" /></Link><p>Connecting donors,<br />hospitals, and hope.</p><span className="public-footer__origin">Rooted in Ghana. Looking across Africa.</span></div>
+      <div><h2>Platform</h2><Link href="/#how-it-works">How It Works</Link><Link href="/auth/register?role=donor">For Donors</Link><Link href="/auth/register?role=hospital">For Hospitals</Link><Link href="/auth/login">Sign In <ArrowUpRight size={13} aria-hidden="true" /></Link></div>
+      <div><h2>FLUID</h2><Link href="/about">Our Story</Link><Link href="/contact">Contact</Link><Link href="/contact?topic=collaboration">Collaborate With Us</Link></div>
+      <div><h2>Policies &amp; terms</h2><Link href="/contact?topic=privacy">Request Privacy Policy</Link><Link href="/contact?topic=terms">Request Terms of Service</Link><p className="public-footer__note">Official documents and social channels will be linked here when available.</p></div>
+    </div>
+    <div className="public-footer__bottom"><span>© {new Date().getFullYear()} FLUID. All rights reserved.</span><span>Every connection begins with care.</span></div>
+  </div></footer>;
 }

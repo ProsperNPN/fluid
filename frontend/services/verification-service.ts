@@ -1,0 +1,15 @@
+import { apiClient } from '@/lib/api';
+
+export type VerificationStatus = 'incomplete' | 'pending' | 'more_information_required' | 'verified' | 'rejected' | 'suspended';
+export interface VerificationDocument { id:string; document_type:string; original_filename:string; content_type:string; size_bytes:number; sha256:string; created_at:string }
+export interface VerificationReview { id:string; decision:string; notes:string|null; reviewer_user_id:string; created_at:string }
+export interface VerificationRequest { id:string; hospital_profile_id:string; hospital_name:string; registration_number:string|null; hospital_type:string|null; city:string; country:string; official_email:string|null; address:string; region:string|null; postal_code:string|null; latitude:number|null; longitude:number|null; contact_phone:string|null; authorized_representative:string|null; has_blood_bank:boolean; status:VerificationStatus; submitted_at:string; reviewed_at:string|null; hospital_message:string|null; documents:VerificationDocument[]; reviews:VerificationReview[] }
+export interface VerificationPage { items:VerificationRequest[]; page:number; page_size:number; total:number; total_pages:number }
+
+export async function getMyVerification(){const response=await apiClient.get<VerificationRequest|null>('/api/v1/hospital-verifications/mine');return response.data}
+export async function submitVerification(entries:Array<{type:string;file:File}>){const body=new FormData();entries.forEach(entry=>{body.append('document_types',entry.type);body.append('files',entry.file)});const response=await apiClient.post<VerificationRequest>('/api/v1/hospital-verifications/submit',body);return response.data}
+export async function listVerifications(params:{status?:string;search?:string;page?:number}={}){const response=await apiClient.get<VerificationPage>('/api/v1/hospital-verifications',{params});return response.data}
+export async function getVerification(id:string){const response=await apiClient.get<VerificationRequest>(`/api/v1/hospital-verifications/${id}`);return response.data}
+export async function decideVerification(id:string,action:Exclude<VerificationStatus,'incomplete'|'pending'>,notes:string){const response=await apiClient.post<VerificationRequest>(`/api/v1/hospital-verifications/${id}/decision`,{action,notes});return response.data}
+export function documentUrl(id:string,download=false){const base=process.env.NEXT_PUBLIC_API_URL||'http://127.0.0.1:8000';return `${base}/api/v1/hospital-verifications/documents/${id}${download?'?download=true':''}`}
+export async function openVerificationDocument(doc:VerificationDocument,download=false){const response=await apiClient.get(`/api/v1/hospital-verifications/documents/${doc.id}`,{params:{download},responseType:'blob'});const url=URL.createObjectURL(response.data);const link=window.document.createElement('a');link.href=url;if(download)link.download=doc.original_filename;else link.target='_blank';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000)}

@@ -21,6 +21,7 @@ class BloodInventory(Base):
     units_available: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     units_reserved: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     expiration_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    collection_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     storage_location: Mapped[str] = mapped_column(String(160), nullable=False)
     minimum_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

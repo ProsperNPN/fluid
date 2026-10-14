@@ -4,6 +4,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
@@ -71,6 +72,9 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)) -> To
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
+    if user.role == "hospital":
+        memberships = (await db.execute(select(HospitalMembership).where(HospitalMembership.user_id == user.id, HospitalMembership.is_active.is_(True)))).scalars().all()
+        for membership in memberships: membership.last_login_at = datetime.now(UTC)
     token_service = AuthTokenService(db)
     tokens = await token_service.issue_token_pair(subject=user.id)
     await db.commit()

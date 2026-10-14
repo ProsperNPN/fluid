@@ -18,6 +18,8 @@ class DonorProfile(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     blood_type: Mapped[str] = mapped_column(String(3), nullable=False, default="O+", server_default="O+")
+    blood_type_known: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    blood_type_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     city: Mapped[str] = mapped_column(String(120), nullable=False, default="Accra", server_default="Accra")
     availability: Mapped[str] = mapped_column(String(255), nullable=False, default="Not set", server_default="Not set")
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)

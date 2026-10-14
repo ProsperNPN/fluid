@@ -1,9 +1,213 @@
 "use client";
-import{useCallback,useEffect,useMemo,useState}from'react';import Link from'next/link';import{AlertTriangle,CalendarDays,CheckCircle2,Clock3,Droplets,PackagePlus,Plus,ShieldCheck,UserRoundCheck}from'lucide-react';import{EmptyState}from'@/components/ui/empty-state';import{LoadingState}from'@/components/ui/loading-state';import{getApiErrorMessage}from'@/lib/api';import{listAppointments}from'@/services/appointments-service';import{listHospitalDonorResponses,type HospitalDonorResponse}from'@/services/hospital-donors-service';import{listHospitalRequests,type HospitalRequest}from'@/services/hospital-requests-service';import{listInventory,type InventoryItem}from'@/services/inventory-service';import{listNotifications}from'@/services/notifications-service';import{getHospitalProfile}from'@/services/profile-service';import type{Appointment,HospitalProfile,NotificationItem}from'@/types';
-function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<18?'Good afternoon':'Good evening'}const panel='rounded-2xl border border-slate-200 bg-white p-5 shadow-sm';
-export default function HospitalOverview(){const[profile,setProfile]=useState<HospitalProfile|null>(null);const[requests,setRequests]=useState<HospitalRequest[]>([]);const[responses,setResponses]=useState<HospitalDonorResponse[]>([]);const[appointments,setAppointments]=useState<Appointment[]>([]);const[inventory,setInventory]=useState<InventoryItem[]>([]);const[notifications,setNotifications]=useState<NotificationItem[]>([]);const[loading,setLoading]=useState(true);const[error,setError]=useState<string|null>(null);const load=useCallback(async()=>{setLoading(true);setError(null);const results=await Promise.allSettled([getHospitalProfile(),listHospitalRequests({page:1}),listHospitalDonorResponses(),listAppointments({scope:'hospital',page:1,pageSize:10}),listInventory(true),listNotifications()]);if(results[0].status==='fulfilled')setProfile(results[0].value);if(results[1].status==='fulfilled')setRequests(results[1].value.items);if(results[2].status==='fulfilled')setResponses(results[2].value.items);if(results[3].status==='fulfilled')setAppointments(results[3].value.items);if(results[4].status==='fulfilled')setInventory(results[4].value);if(results[5].status==='fulfilled')setNotifications(results[5].value.items.slice(0,4));if(results.every(r=>r.status==='rejected'))setError('Hospital operations data could not be loaded.');setLoading(false)},[]);useEffect(()=>{void load()},[load]);const active=requests.filter(r=>['published','partially_fulfilled'].includes(r.status));const metrics=useMemo(()=>[{label:'Active requests',value:active.length,icon:Droplets},{label:'Urgent requests',value:active.filter(r=>r.urgency!=='routine').length,icon:AlertTriangle},{label:'Fulfilled requests',value:requests.filter(r=>r.status==='fulfilled').length,icon:CheckCircle2},{label:'Donor responses',value:responses.length,icon:UserRoundCheck},{label:'Confirmed appointments',value:appointments.filter(a=>a.status==='confirmed').length,icon:CalendarDays},{label:'Units requested',value:requests.reduce((sum,r)=>sum+r.units,0),icon:Clock3}], [active,appointments,requests,responses]);if(loading)return <LoadingState text="Loading hospital overview..."/>;if(error)return <EmptyState title="Overview unavailable" description={error} actionLabel="Try again" onAction={()=>void load()}/>;
-return <div className="space-y-6"><section className="flex flex-col gap-4 rounded-2xl border border-red-100 bg-gradient-to-r from-white to-red-50/60 p-6 shadow-sm lg:flex-row lg:items-center lg:justify-between"><div><p className="text-sm font-medium text-[#C0392B]">Hospital operations</p><h2 className="mt-1 text-2xl font-semibold text-slate-950">{greeting()}, {profile?.hospitalName||'Hospital team'}</h2><p className="mt-2 text-sm text-slate-600">Monitor blood requests, donor coordination, appointments, and inventory from one workspace.</p></div><span className={`inline-flex items-center gap-2 self-start rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${profile?.verificationStatus==='verified'?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}`}><ShieldCheck className="h-4 w-4"/>{profile?.verificationStatus||'pending'} hospital</span></section>
-<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{metrics.map(({label,value,icon:Icon})=><div key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex justify-between"><div><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></div><span className="rounded-xl bg-red-50 p-2.5 text-[#C0392B]"><Icon className="h-5 w-5"/></span></div></div>)}</section>
-<section className={panel}><h3 className="font-semibold">Quick actions</h3><div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[[Plus,'Create blood request','/hospital/requests'],[PackagePlus,'Add inventory','/hospital/inventory'],[UserRoundCheck,'View donor responses','/hospital/donors'],[CalendarDays,'Schedule appointment','/hospital/appointments']].map(([Icon,label,href])=><Link key={String(label)} href={String(href)} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-medium text-slate-700  hover:border-red-200 hover:bg-red-50 hover:text-[#C0392B]"><Icon className="h-4 w-4"/>{String(label)}</Link>)}</div></section>
-<section className="grid gap-6 xl:grid-cols-3"><div className={`${panel} xl:col-span-2`}><div className="flex justify-between"><div><h3 className="font-semibold">Recent requests</h3><p className="text-sm text-slate-500">Latest hospital blood operations.</p></div><Link href="/hospital/requests" className="text-sm font-medium text-[#C0392B]">View all</Link></div>{requests.length?<div className="mt-4 overflow-x-auto"><table className="min-w-[620px] w-full text-left text-sm"><thead className="text-xs uppercase text-slate-400"><tr><th className="py-2">Blood</th><th>Units</th><th>Urgency</th><th>Status</th><th>Responses</th></tr></thead><tbody>{requests.slice(0,6).map(r=><tr key={r.id} className="border-t border-slate-100"><td className="py-3 font-bold text-[#C0392B]">{r.bloodType}</td><td>{r.unitsFulfilled}/{r.units}</td><td className="capitalize">{r.urgency}</td><td className="capitalize">{r.status.replace('_',' ')}</td><td>{r.donorResponseCount}</td></tr>)}</tbody></table></div>:<div className="mt-4"><EmptyState title="No requests yet" description="Create a draft request to begin."/></div>}</div><div className={panel}><div className="flex justify-between"><h3 className="font-semibold">Inventory alerts</h3><Link href="/hospital/inventory" className="text-sm font-medium text-[#C0392B]">View inventory</Link></div>{inventory.length?<div className="mt-4 space-y-3">{inventory.slice(0,5).map(i=><div key={i.id} className="flex justify-between rounded-xl bg-red-50 p-3 text-sm"><span><strong>{i.bloodType}</strong> · {i.component.replace('_',' ')}</span><span className="text-red-700">{i.alertLevel.replace('_',' ')}</span></div>)}</div>:<div className="mt-4"><EmptyState title="No inventory alerts" description="Low and expiring stock warnings will appear here."/></div>}</div></section>
-<section className="grid gap-6 lg:grid-cols-2"><div className={panel}><div className="flex justify-between"><h3 className="font-semibold">Upcoming appointments</h3><Link href="/hospital/appointments" className="text-sm font-medium text-[#C0392B]">View all</Link></div>{appointments.length?<div className="mt-4 space-y-3">{appointments.slice(0,4).map(a=><div key={a.id} className="rounded-xl border border-slate-200 p-3 text-sm"><p className="font-semibold">{a.donorName} · {a.bloodType}</p><p className="mt-1 text-xs text-slate-500">{new Date(a.scheduledAt).toLocaleString()} · {a.status}</p></div>)}</div>:<div className="mt-4"><EmptyState title="No appointments" description="Accepted donor responses create appointments."/></div>}</div><div className={panel}><div className="flex justify-between"><h3 className="font-semibold">Recent notifications</h3><Link href="/hospital/notifications" className="text-sm font-medium text-[#C0392B]">View all</Link></div>{notifications.length?<div className="mt-4 divide-y divide-slate-100">{notifications.map(n=><Link key={n.id} href={n.relatedPath||'/hospital/notifications'} className="block py-3"><p className="text-sm font-semibold">{n.title}</p><p className="mt-1 text-xs text-slate-500">{n.message} · {n.time}</p></Link>)}</div>:<div className="mt-4"><EmptyState title="No notifications" description="Operational alerts will appear here."/></div>}</div></section></div>}
+import { useCallback } from "react";
+import Link from "next/link";
+import {
+  CalendarDays,
+  Droplet,
+  Hospital,
+  MapPin,
+  Plus,
+  Users,
+  PackageSearch,
+  ShieldCheck,
+  ArrowRight,
+} from "lucide-react";
+import { usePortalQuery } from "@/hooks/use-portal-query";
+import { getHospitalProfile } from "@/services/profile-service";
+import { getWorkspaceOverview } from "@/services/workspace-service";
+import { listHospitalRequests } from "@/services/hospital-requests-service";
+import { listHospitalDonorResponses } from "@/services/hospital-donors-service";
+import { listInventory } from "@/services/inventory-service";
+import {
+  PortalEmpty,
+  PortalPanel,
+  PortalSkeleton,
+  StatusPill,
+} from "@/components/portal/portal-ui";
+import { InventoryOverview } from "@/components/portal/inventory-overview";
+import { AnalyticsChart } from "@/components/portal/analytics-chart";
+export default function HospitalOverview() {
+  const loader = useCallback(async () => {
+    const [profile, stats, requests, responses, inventory] = await Promise.all([
+      getHospitalProfile(),
+      getWorkspaceOverview(),
+      listHospitalRequests({ page: 1 }),
+      listHospitalDonorResponses(),
+      listInventory(),
+    ]);
+    return {
+      profile,
+      stats,
+      requests: requests.items,
+      responses: responses.items,
+      inventory,
+    };
+  }, []);
+  const q = usePortalQuery(loader);
+  if (q.loading) return <PortalSkeleton />;
+  if (!q.data)
+    return (
+      <PortalEmpty
+        title="Hospital overview unavailable"
+        description={q.error || "Try refreshing this workspace."}
+      />
+    );
+  const { profile, stats, requests, responses, inventory } = q.data;
+  return (
+    <div className="portal-stack">
+      {q.error && (
+        <div className="portal-error" role="alert">
+          {q.error}
+        </div>
+      )}
+      <section className="portal-hospital-identity">
+        <span className="portal-hospital-mark">
+          <Hospital size={32} />
+        </span>
+        <div>
+          <h1>{profile.hospitalName}</h1>
+          <p>
+            <MapPin size={13} />
+            {profile.city}, {profile.region || profile.country}
+          </p>
+        </div>
+        <span className="portal-verification">
+          <ShieldCheck size={13} />
+          Verified
+        </span>
+        <Link className="portal-button" href="/hospital/requests?create=1">
+          <Plus size={16} />
+          New Request
+        </Link>
+      </section>
+      <section className="portal-stats">
+        {[
+          {
+            label: "Active requests",
+            value: stats.active_requests,
+            Icon: Droplet,
+            href: "/hospital/requests",
+            note: "Published and partially fulfilled",
+          },
+          {
+            label: "Pending donors",
+            value: stats.pending_responses,
+            Icon: Users,
+            href: "/hospital/donors",
+            note: "Awaiting your team’s review",
+          },
+          {
+            label: "Appointments",
+            value: stats.upcoming_appointments,
+            Icon: CalendarDays,
+            href: "/hospital/appointments",
+            note: "Pending and confirmed",
+          },
+          {
+            label: "Blood inventory",
+            value: stats.stock_units,
+            Icon: PackageSearch,
+            href: "/hospital/inventory",
+            note: `${stats.inventory_alerts} batch alert(s)`,
+          },
+        ].map(({ label, value, Icon, href, note }) => (
+          <Link className="portal-stat" href={href} key={label}>
+            <span>
+              <Icon size={25} />
+              {label}
+            </span>
+            <strong>{value}</strong>
+            <small>{note}</small>
+            <em>
+              View details <ArrowRight size={12} />
+            </em>
+          </Link>
+        ))}
+      </section>
+      <div className="portal-hospital-grid">
+        <PortalPanel
+          title="Blood Inventory Overview"
+          action={
+            <Link className="portal-text-link" href="/hospital/inventory">
+              View Details
+            </Link>
+          }
+        >
+          <InventoryOverview items={inventory} />
+        </PortalPanel>
+        <PortalPanel
+          title="Recent Blood Requests"
+          action={
+            <Link className="portal-text-link" href="/hospital/requests">
+              View All
+            </Link>
+          }
+        >
+          {requests.length ? (
+            <div className="portal-recent-list">
+              {requests.slice(0, 4).map((r) => (
+                <Link key={r.id} href={`/hospital/requests?request=${r.id}`}>
+                  <span className="portal-blood-badge">{r.bloodType}</span>
+                  <div>
+                    <strong>
+                      {Math.max(0, r.units - r.unitsFulfilled)} unit(s)
+                      remaining
+                    </strong>
+                    <small>
+                      {r.component.replaceAll("_", " ")} ·{" "}
+                      {r.department || "Blood request"}
+                    </small>
+                  </div>
+                  <StatusPill status={r.urgency} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <PortalEmpty
+              title="No requests yet"
+              description="Create your first blood request to begin donor coordination."
+              href="/hospital/requests?create=1"
+              action="Create request"
+            />
+          )}
+        </PortalPanel>
+        <PortalPanel
+          title="Donor Matches"
+          action={
+            <Link className="portal-text-link" href="/hospital/donors">
+              View All
+            </Link>
+          }
+        >
+          {responses.length ? (
+            <div className="portal-recent-list">
+              {responses.slice(0, 4).map((r) => (
+                <Link key={r.id} href="/hospital/donors">
+                  <span className="portal-avatar">{r.donor[0]}</span>
+                  <div>
+                    <strong>{r.donor}</strong>
+                    <small>
+                      {r.approximateLocation || "Location not recorded"}
+                      {r.distanceKm !== null ? ` · ${r.distanceKm} km` : ""}
+                    </small>
+                  </div>
+                  <StatusPill status={r.responseStatus || r.response} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <PortalEmpty
+              title="No donor responses yet"
+              description="Publish a request, then invite available compatible donors."
+              href="/hospital/donors"
+              action="Explore matches"
+            />
+          )}
+        </PortalPanel>
+        <PortalPanel title="Request Analytics">
+          <AnalyticsChart />
+        </PortalPanel>
+      </div>
+    </div>
+  );
+}

@@ -8,7 +8,7 @@ Urgency = Literal["routine", "urgent", "critical"]
 
 class BloodRequestCreate(BaseModel):
     blood_type: BloodType
-    component: str = Field(default="whole_blood", min_length=2, max_length=40)
+    component: Literal["whole_blood", "red_cells", "plasma", "platelets"] = "whole_blood"
     units: int = Field(ge=1, le=100)
     urgency: Urgency = "routine"
     patient_category: str | None = Field(default=None, max_length=80)
@@ -26,6 +26,7 @@ class BloodRequestCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_dates(self):
+        if any(value and value.tzinfo is None for value in [self.required_by, self.expires_at]): raise ValueError("Request times must include a time zone")
         if self.required_by and self.expires_at and self.expires_at > self.required_by: raise ValueError("Expiration must be on or before the required-by time")
         return self
 

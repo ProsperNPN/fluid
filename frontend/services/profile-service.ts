@@ -10,6 +10,9 @@ function parseDonorProfile(data: unknown, context: string): DonorProfile {
   return {
     id: ensureString(record.id, `${context}.id`),
     userId: ensureString(record.user_id, `${context}.user_id`),
+    bloodTypeKnown: ensureBoolean(record.blood_type_known, `${context}.blood_type_known`),
+    bloodTypeVerified: ensureBoolean(record.blood_type_verified, `${context}.blood_type_verified`),
+    policyApproved: ensureBoolean(record.policy_approved, `${context}.policy_approved`),
     bloodType: ensureEnum(record.blood_type, bloodTypes, `${context}.blood_type`),
     city: ensureString(record.city, `${context}.city`),
     availability: ensureString(record.availability, `${context}.availability`),
@@ -51,6 +54,7 @@ function parseHospitalProfile(data: unknown, context: string): HospitalProfile {
     ownershipType: ensureNullableString(record.ownership_type, `${context}.ownership_type`) as HospitalProfile['ownershipType'],
     region: ensureNullableString(record.region, `${context}.region`),
     country: ensureString(record.country, `${context}.country`),
+    postalCode: ensureNullableString(record.postal_code, `${context}.postal_code`),
     latitude: ensureNullableNumber(record.latitude, `${context}.latitude`),
     longitude: ensureNullableNumber(record.longitude, `${context}.longitude`),
     officialEmail: ensureNullableString(record.official_email, `${context}.official_email`),
@@ -60,7 +64,7 @@ function parseHospitalProfile(data: unknown, context: string): HospitalProfile {
     operatingHours: ensureNullableString(record.operating_hours, `${context}.operating_hours`),
     authorizedRepresentative: ensureNullableString(record.authorized_representative, `${context}.authorized_representative`),
     verificationDocumentUrl: ensureNullableString(record.verification_document_url, `${context}.verification_document_url`),
-    verificationStatus: ensureEnum(record.verification_status, ['pending', 'verified', 'rejected', 'suspended'] as const, `${context}.verification_status`),
+    verificationStatus: ensureEnum(record.verification_status, ['incomplete', 'pending', 'more_information_required', 'verified', 'rejected', 'suspended'] as const, `${context}.verification_status`),
     memberRole: ensureString(record.member_role, `${context}.member_role`),
   };
 }
@@ -73,6 +77,7 @@ export async function getDonorProfile(): Promise<DonorProfile> {
 export async function updateDonorProfile(payload: DonorProfile): Promise<DonorProfile> {
   const response = await apiClient.put<unknown>('/api/v1/profiles/donor/me', {
     blood_type: payload.bloodType,
+    blood_type_known: payload.bloodTypeKnown,
     full_name: payload.fullName,
     phone: payload.phone,
     date_of_birth: payload.dateOfBirth,
@@ -86,7 +91,6 @@ export async function updateDonorProfile(payload: DonorProfile): Promise<DonorPr
     latitude: payload.latitude,
     longitude: payload.longitude,
     is_available: payload.isAvailable,
-    is_eligible: payload.isEligible,
     last_donation_date: payload.lastDonationDate,
     notify_urgent_requests: payload.notifyUrgentRequests,
     notify_appointments: payload.notifyAppointments,
@@ -124,6 +128,7 @@ export async function updateHospitalProfile(payload: HospitalProfile): Promise<H
     ownership_type: payload.ownershipType,
     region: payload.region,
     country: payload.country,
+    postal_code: payload.postalCode,
     latitude: payload.latitude,
     longitude: payload.longitude,
     official_email: payload.officialEmail,

@@ -1,19 +1,267 @@
 "use client";
-import { useCallback, useEffect, useState } from 'react';
-import { MapPin, Search, ShieldCheck } from 'lucide-react';
-import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
-import { LoadingState } from '@/components/ui/loading-state';
-import { getApiErrorMessage } from '@/lib/api';
-import { listCompatibleRequests, respondToRequest, type CompatibleRequest } from '@/services/compatible-requests-service';
-
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, MapPin, CalendarDays, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { usePortalQuery } from "@/hooks/use-portal-query";
+import {
+  listCompatibleRequests,
+  respondToRequest,
+  type CompatibleRequest,
+} from "@/services/compatible-requests-service";
+import { openConversation } from "@/services/messages-service";
+import { getApiErrorMessage } from "@/lib/api";
+import {
+  PortalDialog,
+  PortalEmpty,
+  PortalSkeleton,
+  RequestCard,
+  StatusPill,
+} from "@/components/portal/portal-ui";
 export default function RequestsPage() {
-  const [items, setItems] = useState<CompatibleRequest[]>([]); const [search, setSearch] = useState(''); const [urgency, setUrgency] = useState('all'); const [page, setPage] = useState(1); const [pages, setPages] = useState(0); const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
-  const load = useCallback(async () => { setLoading(true); setError(null); try { const result = await listCompatibleRequests({ page, urgency, search: search || undefined }); setItems(result.items); setPages(result.totalPages); } catch (e) { setError(getApiErrorMessage(e, 'Unable to load compatible requests.')); } finally { setLoading(false); } }, [page, search, urgency]);
-  useEffect(() => { const timer = setTimeout(() => void load(), 250); return () => clearTimeout(timer); }, [load]);
-  const respond = async (id: string, status: 'accepted' | 'declined' | 'saved') => { if (busy) return; setBusy(id); try { await respondToRequest(id, status); toast.success(status === 'accepted' ? 'Request accepted. Your appointment is ready to schedule.' : status === 'saved' ? 'Request saved.' : 'Request declined.'); await load(); } catch (e) { toast.error(getApiErrorMessage(e, 'Unable to update this request.')); } finally { setBusy(null); } };
-  return <div className="space-y-5"><section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="grid gap-3 sm:grid-cols-[1fr_180px]"><label className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search hospital or location" className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[#C0392B]" /></label><select value={urgency} onChange={(e) => { setUrgency(e.target.value); setPage(1); }} className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none"><option value="all">All urgency</option><option value="urgent">Urgent</option><option value="open">Open</option></select></div></section>
-  {loading ? <LoadingState text="Finding compatible requests..." /> : error ? <EmptyState title="Requests unavailable" description={error} actionLabel="Try again" onAction={() => void load()} /> : items.length === 0 ? <EmptyState title="No compatible requests near you right now" description="Keep your blood profile, availability, and location current so verified hospitals can reach you." /> : <section className="grid gap-4 lg:grid-cols-2">{items.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm   "><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-1.5"><h2 className="font-semibold text-slate-950">{item.hospitalName}</h2>{item.hospitalVerified ? <ShieldCheck className="h-4 w-4 text-blue-600" /> : null}</div><p className="mt-1 flex items-center gap-1 text-xs text-slate-500"><MapPin className="h-3 w-3" />{item.location}{item.distanceKm !== null ? ` · ${item.distanceKm} km` : ''}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === 'urgent' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>{item.status}</span></div><div className="mt-5 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center"><div><p className="text-xs text-slate-500">Blood</p><p className="font-bold text-[#C0392B]">{item.bloodType}</p></div><div><p className="text-xs text-slate-500">Units</p><p className="font-semibold text-slate-900">{item.units}</p></div><div><p className="text-xs text-slate-500">Expires</p><p className="text-xs font-semibold text-slate-900">{item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'Not set'}</p></div></div>{item.notes ? <p className="mt-4 text-sm text-slate-600">{item.notes}</p> : null}<div className="mt-5 flex flex-wrap justify-end gap-2"><Button variant="ghost" disabled={busy === item.id} onClick={() => void respond(item.id, 'saved')}>Save</Button><Button variant="secondary" disabled={busy === item.id} onClick={() => void respond(item.id, 'declined')}>Decline</Button><Button disabled={busy === item.id || item.responseStatus === 'accepted'} onClick={() => void respond(item.id, 'accepted')}>{item.responseStatus === 'accepted' ? 'Accepted' : 'Accept request'}</Button></div></article>)}</section>}
-  {pages > 1 ? <div className="flex items-center justify-center gap-3"><Button variant="secondary" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span className="text-sm text-slate-500">Page {page} of {pages}</span><Button variant="secondary" disabled={page === pages} onClick={() => setPage((value) => value + 1)}>Next</Button></div> : null}</div>;
+  const router = useRouter();
+  const openedRequest = useRef<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [queryText, setQueryText] = useState("");
+  const [urgency, setUrgency] = useState("all");
+  const [page, setPage] = useState(1);
+  const [nearby, setNearby] = useState(false);
+  const [selected, setSelected] = useState<CompatibleRequest | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setQueryText(search), 250);
+    return () => clearTimeout(timer);
+  }, [search]);
+  const loader = useCallback(
+    () =>
+      listCompatibleRequests({
+        search: queryText,
+        urgency,
+        page,
+        pageSize: 12,
+      }),
+    [queryText, urgency, page],
+  );
+  const query = usePortalQuery(loader);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("request");
+    if (id && id !== openedRequest.current && query.data) {
+      const item = query.data.items.find((r) => r.id === id);
+      if (item) {
+        openedRequest.current = id;
+        setSelected(item);
+      }
+    }
+  }, [query.data]);
+  const items = [...(query.data?.items || [])];
+  if (nearby)
+    items.sort(
+      (a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity),
+    );
+  async function respond(status: "accepted" | "declined" | "saved") {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const item = await respondToRequest(selected.id, status);
+      setSelected(item);
+      await query.refresh();
+      toast.success(
+        status === "accepted"
+          ? "Interest sent. The hospital will review and coordinate an appointment."
+          : status === "saved"
+            ? "Request saved."
+            : "Response updated.",
+      );
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Unable to respond."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function message() {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const id = await openConversation(selected.id);
+      router.push("/donor/messages?conversation=" + id);
+    } catch (e) {
+      toast.error(getApiErrorMessage(e, "Unable to open a conversation."));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="portal-stack">
+      <div className="portal-request-tools">
+        <label className="portal-search">
+          <Search size={17} />
+          <input
+            aria-label="Search hospital or location"
+            placeholder="Search hospital or location"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </label>
+        <select
+          aria-label="Filter request urgency"
+          value={urgency}
+          onChange={(e) => {
+            setUrgency(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="all">All urgency</option>
+          <option value="routine">Routine</option>
+          <option value="urgent">Urgent</option>
+          <option value="critical">Critical</option>
+        </select>
+        <button
+          className={nearby ? "portal-filter is-active" : "portal-filter"}
+          aria-pressed={nearby}
+          onClick={() => setNearby(!nearby)}
+        >
+          <MapPin size={15} />
+          Nearest first
+        </button>
+      </div>
+      {query.loading ? (
+        <PortalSkeleton />
+      ) : query.error ? (
+        <PortalEmpty title="Requests unavailable" description={query.error} />
+      ) : items.length ? (
+        <div className="portal-request-grid">
+          {items.map((item) => (
+            <RequestCard
+              key={item.id}
+              item={item}
+              onDetails={() => setSelected(item)}
+            />
+          ))}
+        </div>
+      ) : (
+        <PortalEmpty
+          title="No compatible requests right now"
+          description="Keep your reported blood type, date of birth, coordinates, and availability current. Matching also requires an approved local referral policy."
+          href="/donor/profile"
+          action="Update your profile"
+        />
+      )}
+      {query.data && query.data.totalPages > 1 && (
+        <div className="portal-pagination">
+          <button disabled={page === 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {page} of {query.data.totalPages}
+          </span>
+          <button
+            disabled={page === query.data.totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </button>
+        </div>
+      )}
+      {selected && (
+        <PortalDialog
+          title="Blood Request Details"
+          onClose={() => setSelected(null)}
+        >
+          <div className="portal-stack">
+            <div className="portal-dialog-identity">
+              <h3>{selected.hospitalName}</h3>
+              <StatusPill status={selected.urgency} />
+            </div>
+            <p className="portal-muted">
+              <MapPin size={15} />
+              {selected.location} ·{" "}
+              {selected.distanceKm !== null
+                ? `${selected.distanceKm} km`
+                : "Distance unavailable"}
+            </p>
+            <div className="portal-dialog-facts">
+              <span>
+                <small>Blood / component</small>
+                <strong>
+                  {selected.bloodType} ·{" "}
+                  {selected.component.replaceAll("_", " ")}
+                </strong>
+              </span>
+              <span>
+                <small>Units needed</small>
+                <strong>{selected.units}</strong>
+              </span>
+              <span>
+                <small>Required by</small>
+                <strong>
+                  {selected.requiredBy
+                    ? new Date(selected.requiredBy).toLocaleString()
+                    : "Contact hospital"}
+                </strong>
+              </span>
+            </div>
+            {selected.notes && <p>{selected.notes}</p>}
+            <div className="portal-policy-note">
+              <CalendarDays size={18} />
+              Expressing interest does not confirm an appointment or medical
+              eligibility. The hospital reviews your response and clinical
+              screening is required.
+            </div>
+            {selected.responseStatus && (
+              <p>
+                Your response: <StatusPill status={selected.responseStatus} />
+              </p>
+            )}
+            <div className="portal-dialog-actions">
+              <button
+                className="portal-button portal-button--secondary"
+                disabled={busy}
+                onClick={() => void respond("saved")}
+              >
+                Save
+              </button>
+              <button
+                className="portal-button portal-button--secondary"
+                disabled={busy}
+                onClick={() => void respond("declined")}
+              >
+                Decline
+              </button>
+              <button
+                className="portal-button"
+                disabled={
+                  busy ||
+                  ["pending", "accepted", "scheduled", "completed"].includes(
+                    selected.responseStatus || "",
+                  )
+                }
+                onClick={() => void respond("accepted")}
+              >
+                {busy ? "Updating…" : "I’m Interested"}
+              </button>
+            </div>
+            {[
+              "invited",
+              "pending",
+              "accepted",
+              "scheduled",
+              "completed",
+            ].includes(selected.responseStatus || "") && (
+              <button
+                className="portal-text-link"
+                disabled={busy}
+                onClick={() => void message()}
+              >
+                <MessageCircle size={16} />
+                Message the Hospital
+              </button>
+            )}
+          </div>
+        </PortalDialog>
+      )}
+    </div>
+  );
 }
