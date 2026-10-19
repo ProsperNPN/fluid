@@ -12,7 +12,7 @@ from app.services.blood_matching import can_donate_to, distance_km, is_donor_eli
 
 
 def profile(**overrides):
-    values = dict(blood_type="O-", blood_type_known=True, date_of_birth=date(1990, 1, 1), is_available=True, is_eligible=True, last_donation_date=None, latitude=5.6037, longitude=-0.1870, preferred_radius_km=25, city="Accra")
+    values = dict(blood_type="O-", blood_type_known=True, date_of_birth=date(1990, 1, 1), is_available=True, matching_opt_in=True, is_eligible=True, last_donation_date=None, latitude=5.6037, longitude=-0.1870, preferred_radius_km=25, city="Accra")
     values.update(overrides)
     return SimpleNamespace(**values)
 
@@ -64,3 +64,10 @@ def test_unapproved_policy_and_unknown_blood_type_do_not_match(monkeypatch):
 def test_unknown_coordinates_do_not_invent_nearby_matches():
     assert not match_request(profile(latitude=None), request())[0]
     assert not match_request(profile(), request(hospital_verified=False))[0]
+
+
+def test_radius_permissions_are_checked_before_rounding_display_distance():
+    donor = profile(latitude=0, longitude=0, preferred_radius_km=5)
+    nearby_request = request(latitude=5.04 / 111.195, longitude=0)
+    assert distance_km(0, 0, nearby_request.latitude, 0) == 5.0
+    assert not match_request(donor, nearby_request)[0]

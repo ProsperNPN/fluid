@@ -5,7 +5,7 @@ from app.api.deps import HospitalContext, get_current_user, get_hospital_context
 from app.core.database import get_db
 from app.models import User
 from app.repositories import ProfileRepository
-from datetime import date
+from datetime import date, datetime, UTC
 from sqlalchemy import select, func
 from app.models import Appointment
 from app.core.config import settings
@@ -14,6 +14,15 @@ from app.services.blood_matching import is_donor_eligible, next_eligible_date
 from app.schemas.profile import DonorAvailabilityUpdate, DonorLocationUpdate, DonorProfileRead, DonorProfileUpdate, HospitalProfileRead, HospitalProfileUpdate
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
+
+
+def invalidate_changed_location(profile, payload):
+    if any(getattr(profile, field) != getattr(payload, field) for field in ["latitude", "longitude", "city", "region", "country", "address"]):
+        profile.location_updated_at = datetime.now(UTC)
+        profile.location_confirmed_at = None
+        profile.location_source = "manual"
+        profile.location_accuracy_m = None
+
 
 
 def _donor_profile_read(profile, user: User) -> DonorProfileRead:
@@ -71,8 +80,11 @@ async def update_my_donor_profile(
         raise HTTPException(status_code=409, detail="A hospital-recorded donation date cannot be removed or moved earlier")
     if profile.blood_type != payload.blood_type or not payload.blood_type_known:
         profile.blood_type_verified = False
+    invalidate_changed_location(profile, payload)
     current_user.full_name = payload.full_name
     for field, value in payload.model_dump(exclude={"full_name", "is_eligible"}).items():
+        if field == "matching_opt_in" and value is None:
+            continue
         setattr(profile, field, value)
     profile.availability = "Available to donate" if payload.is_available else "Temporarily unavailable"
 
@@ -100,6 +112,7 @@ async def update_my_donor_location(payload: DonorLocationUpdate, db: AsyncSessio
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Donor profile access only")
     repository = ProfileRepository(db)
     profile = await repository.get_donor_profile(current_user.id) or await repository.create_donor_profile(user_id=current_user.id)
+    invalidate_changed_location(profile, payload)
     for field, value in payload.model_dump().items():
         setattr(profile, field, value)
     await db.commit()
@@ -121,6 +134,7 @@ async def update_my_hospital_profile(
     context: HospitalContext = Depends(require_hospital_admin),
 ) -> HospitalProfileRead:
     profile = context.hospital
+    invalidate_changed_location(profile, payload)
     identity_changed = any(getattr(profile, field) != getattr(payload, field) for field in ["hospital_name", "registration_number", "address", "city", "country"])
     for field, value in payload.model_dump().items(): setattr(profile, field, value)
     if identity_changed and profile.verification_status == "verified": profile.verification_status = "more_information_required"

@@ -1,6 +1,6 @@
-export type BloodType = 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+export type BloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
 
-export type RequestStatus = 'urgent' | 'open' | 'filled';
+export type RequestStatus = "urgent" | "open" | "filled";
 
 export interface BloodRequest {
   id: string;
@@ -17,7 +17,7 @@ export interface DonationHistoryItem {
   hospital: string;
   date: string;
   bloodType: BloodType;
-  status: 'completed' | 'scheduled';
+  status: "completed" | "scheduled";
 }
 
 export interface Appointment {
@@ -27,7 +27,25 @@ export interface Appointment {
   donorName: string;
   bloodType: BloodType;
   scheduledAt: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'missed';
+  status:
+    | "pending"
+    | "confirmed"
+    | "checked_in"
+    | "completed"
+    | "cancelled"
+    | "no_show"
+    | "missed";
+  component: string;
+  hospitalLatitude?: number | null;
+  hospitalLongitude?: number | null;
+  endsAt: string | null;
+  isScheduled: boolean;
+  timezone: string;
+  proposedBy: string | null;
+  preparationInstructions: string;
+  cancellationReason: string | null;
+  version: number;
+  checkedInAt: string | null;
   location: string;
   units: number;
   department: string | null;
@@ -36,10 +54,25 @@ export interface Appointment {
 }
 
 export interface NotificationItem {
+  createdAt: string;
+  emergency: {
+    request_id: string;
+    hospital: string;
+    location: string;
+    blood_type: string;
+    component: string;
+    units: number;
+    urgency: string;
+    distance_km: number;
+    deadline: string | null;
+    status?: string;
+    response_status?: string;
+    can_respond?: boolean;
+  } | null;
   id: string;
   message: string;
   time: string;
-  level: 'info' | 'warning' | 'success';
+  level: "info" | "warning" | "success";
   type: string;
   title: string;
   isRead: boolean;
@@ -47,6 +80,7 @@ export interface NotificationItem {
 }
 
 export interface DonorProfile {
+  matchingOptIn: boolean;
   bloodTypeKnown: boolean;
   bloodTypeVerified: boolean;
   policyApproved: boolean;
@@ -72,6 +106,8 @@ export interface DonorProfile {
   lastDonationDate: string | null;
   nextEligibleDate: string | null;
   notifyUrgentRequests: boolean;
+  notifyEmailAlerts: boolean;
+  notifySmsAlerts: boolean;
   notifyAppointments: boolean;
   notifyEligibility: boolean;
   profileCompletion: number;
@@ -86,7 +122,7 @@ export interface HospitalProfile {
   contactPhone: string | null;
   registrationNumber: string | null;
   hospitalType: string | null;
-  ownershipType: 'public' | 'private' | 'nonprofit' | null;
+  ownershipType: "public" | "private" | "nonprofit" | null;
   region: string | null;
   country: string;
   postalCode: string | null;
@@ -99,6 +135,12 @@ export interface HospitalProfile {
   operatingHours: string | null;
   authorizedRepresentative: string | null;
   verificationDocumentUrl: string | null;
-  verificationStatus: 'incomplete' | 'pending' | 'more_information_required' | 'verified' | 'rejected' | 'suspended';
+  verificationStatus:
+    | "incomplete"
+    | "pending"
+    | "more_information_required"
+    | "verified"
+    | "rejected"
+    | "suspended";
   memberRole: string;
 }

@@ -3,6 +3,9 @@ from hashlib import sha256
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from starlette.concurrency import run_in_threadpool
+from app.core.config import settings
+from app.services.email_service import send_email
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -53,6 +56,12 @@ async def register_user(payload: RegisterRequest, db: AsyncSession = Depends(get
             hospital_name=payload.full_name or payload.email,
         )
         db.add(HospitalMembership(hospital_profile_id=hospital_profile.id, user_id=user.id, role="hospital_admin"))
+        if payload.location:
+            for field in ["latitude", "longitude", "city", "region", "country", "address"]:
+                setattr(hospital_profile, field, getattr(payload.location, field))
+            hospital_profile.location_source = payload.location.source
+            hospital_profile.location_accuracy_m = payload.location.accuracy_m
+            hospital_profile.location_updated_at = datetime.now(UTC)
     else:
         await profile_repo.create_donor_profile(user_id=user.id)
 
@@ -99,7 +108,15 @@ async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Dep
     await reset_repo.create(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
     await db.commit()
 
-    return ForgotPasswordResponse(message=generic_message, reset_token=raw_token)
+    # Recovery credentials must only reach the owner through the configured mailbox.
+    # Never return them to the unauthenticated caller, including in development.
+    reset_url = f"{settings.FRONTEND_URL.rstrip('/')}/auth/reset-password?token={raw_token}"
+    await run_in_threadpool(
+        send_email, user.email, "Reset your FLUID password",
+        f"Use this link within 30 minutes to reset your password:\n{reset_url}\n"
+        "If you did not request this, you can ignore this email.",
+    )
+    return ForgotPasswordResponse(message=generic_message)
 
 
 @router.post("/reset-password", response_model=MessageResponse)
@@ -118,7 +135,9 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
 
     user.hashed_password = get_password_hash(payload.new_password)
 
-    await reset_repo.mark_used(token_record.id)
+    if not await reset_repo.mark_used(token_record.id):
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     refresh_repo = RefreshTokenRepository(db)
     await refresh_repo.revoke_all_for_user(user.id)
 
@@ -144,7 +163,9 @@ async def refresh_tokens(payload: RefreshTokenRequest, db: AsyncSession = Depend
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token revoked or expired")
 
     if token_payload.jti:
-        await token_service.revoke_refresh_token(token_payload.jti)
+        if not await token_service.revoke_refresh_token(token_payload.jti):
+            await db.rollback()
+            raise HTTPException(status_code=401, detail="Refresh token revoked or expired")
 
     new_tokens = await token_service.issue_token_pair(subject=user.id)
     await db.commit()

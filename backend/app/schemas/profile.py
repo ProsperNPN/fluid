@@ -1,12 +1,23 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 
 
+class CoordinateUpdate(BaseModel):
+    model_config = {"str_strip_whitespace": True, "allow_inf_nan": False}
+
+    @model_validator(mode="after")
+    def paired_coordinates(self):
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("Latitude and longitude must be supplied together")
+        return self
+
+
 class DonorProfileRead(BaseModel):
+    matching_opt_in: bool = False
     blood_type_verified: bool = False
     policy_approved: bool = False
     id: str
@@ -32,6 +43,8 @@ class DonorProfileRead(BaseModel):
     last_donation_date: date | None
     next_eligible_date: date | None
     notify_urgent_requests: bool
+    notify_email_alerts: bool = False
+    notify_sms_alerts: bool = False
     notify_appointments: bool
     notify_eligibility: bool
     profile_completion: int
@@ -41,7 +54,8 @@ class DonorProfileRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class DonorProfileUpdate(BaseModel):
+class DonorProfileUpdate(CoordinateUpdate):
+    matching_opt_in: bool | None = None
     model_config = {"str_strip_whitespace": True}
     blood_type: BloodType
     blood_type_known: bool = False
@@ -61,6 +75,8 @@ class DonorProfileUpdate(BaseModel):
     is_eligible: bool = True
     last_donation_date: date | None = None
     notify_urgent_requests: bool = True
+    notify_email_alerts: bool = False
+    notify_sms_alerts: bool = False
     notify_appointments: bool = True
     notify_eligibility: bool = True
 
@@ -69,7 +85,7 @@ class DonorAvailabilityUpdate(BaseModel):
     is_available: bool
 
 
-class DonorLocationUpdate(BaseModel):
+class DonorLocationUpdate(CoordinateUpdate):
     city: str = Field(min_length=2, max_length=120)
     address: str | None = Field(default=None, max_length=255)
     region: str | None = Field(default=None, max_length=120)
@@ -108,7 +124,7 @@ class HospitalProfileRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class HospitalProfileUpdate(BaseModel):
+class HospitalProfileUpdate(CoordinateUpdate):
     model_config = {"str_strip_whitespace": True}
     hospital_name: str = Field(min_length=2, max_length=255)
     city: str = Field(min_length=2, max_length=120)

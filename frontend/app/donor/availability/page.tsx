@@ -72,20 +72,39 @@ export default function AvailabilityPage() {
             <MapPin size={17} />
             Preferred donation radius (km)
           </span>
-          <input
-            type="number"
-            min={1}
-            max={500}
-            required
+          <select
             value={form.preferredRadiusKm}
             onChange={(e) =>
               setForm({ ...form, preferredRadiusKm: Number(e.target.value) })
             }
-          />
+          >
+            {[5, 10, 25, 50, 100].map((r) => (
+              <option key={r} value={r}>
+                {r} km
+              </option>
+            ))}
+          </select>
         </label>
         <p className="portal-small-note">
           Nearby matching uses saved GPS or manually entered coordinates. Set
           them in Profile &amp; Settings.
+        </p>
+      </PortalPanel>
+      <PortalPanel title="Matching consent">
+        <label className="portal-toggle-row">
+          <span>Allow location-based matching and hospital invitations</span>
+          <input
+            type="checkbox"
+            checked={form.matchingOptIn}
+            onChange={(e) =>
+              setForm({ ...form, matchingOptIn: e.target.checked })
+            }
+          />
+        </label>
+        <p className="portal-small-note">
+          Hospitals see your blood group, approximate area and calculated
+          distance, never your exact coordinates. Availability and matching
+          consent are separate. Turn this off to stop new referrals.
         </p>
       </PortalPanel>
       <PortalPanel title="Notification preferences">
@@ -93,6 +112,11 @@ export default function AvailabilityPage() {
           {(
             [
               ["notifyUrgentRequests", "Urgent request alerts"],
+              ["notifyEmailAlerts", "Email emergency alerts"],
+              [
+                "notifySmsAlerts",
+                "SMS emergency alerts (uses your saved phone number)",
+              ],
               ["notifyAppointments", "Appointment updates"],
               ["notifyEligibility", "Eligibility reminders"],
             ] as const

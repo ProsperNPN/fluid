@@ -1,11 +1,13 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, MapPin, CalendarDays, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { usePortalQuery } from "@/hooks/use-portal-query";
 import {
   listCompatibleRequests,
+  listDonorInvitations,
   respondToRequest,
   type CompatibleRequest,
 } from "@/services/compatible-requests-service";
@@ -25,6 +27,7 @@ export default function RequestsPage() {
   const [queryText, setQueryText] = useState("");
   const [urgency, setUrgency] = useState("all");
   const [page, setPage] = useState(1);
+  const [invitationPage, setInvitationPage] = useState(1);
   const [nearby, setNearby] = useState(false);
   const [selected, setSelected] = useState<CompatibleRequest | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,16 +46,33 @@ export default function RequestsPage() {
     [queryText, urgency, page],
   );
   const query = usePortalQuery(loader);
+  const invitationLoader = useCallback(
+    () => listDonorInvitations(invitationPage),
+    [invitationPage],
+  );
+  const invitations = usePortalQuery(invitationLoader);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("request");
-    if (id && id !== openedRequest.current && query.data) {
-      const item = query.data.items.find((r) => r.id === id);
-      if (item) {
-        openedRequest.current = id;
-        setSelected(item);
-      }
+    if (id && id !== openedRequest.current && query.data && invitations.data) {
+      const item =
+        invitations.data.items.find((r) => r.id === id) ||
+        query.data.items.find((r) => r.id === id);
+      openedRequest.current = id;
+      if (item) setSelected(item);
+      else
+        void listCompatibleRequests({ requestId: id })
+          .then((result) => {
+            if (result.items[0]) setSelected(result.items[0]);
+            else
+              toast.info(
+                "This request is no longer available within your current matching criteria.",
+              );
+          })
+          .catch((e) =>
+            toast.error(getApiErrorMessage(e, "Unable to open this request.")),
+          );
     }
-  }, [query.data]);
+  }, [query.data, invitations.data]);
   const items = [...(query.data?.items || [])];
   if (nearby)
     items.sort(
@@ -64,7 +84,7 @@ export default function RequestsPage() {
     try {
       const item = await respondToRequest(selected.id, status);
       setSelected(item);
-      await query.refresh();
+      await Promise.all([query.refresh(), invitations.refresh()]);
       toast.success(
         status === "accepted"
           ? "Interest sent. The hospital will review and coordinate an appointment."
@@ -92,6 +112,56 @@ export default function RequestsPage() {
   }
   return (
     <div className="portal-stack">
+      <section className="portal-panel p-5">
+        <h1 className="text-xl font-bold">Hospital Invitations</h1>
+        <p className="portal-small-note mt-2">
+          Accepting expresses interest for hospital review; it does not confirm
+          medical eligibility. You can decline an invitation even if your
+          availability changes.
+        </p>
+        {invitations.loading ? (
+          <PortalSkeleton />
+        ) : invitations.error ? (
+          <PortalEmpty
+            title="Invitations unavailable"
+            description={invitations.error}
+          />
+        ) : invitations.data?.items.length ? (
+          <div className="portal-request-grid mt-4">
+            {invitations.data.items.map((item) => (
+              <RequestCard
+                key={item.id}
+                item={item}
+                onDetails={() => setSelected(item)}
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="portal-small-note mt-3">No hospital invitations yet.</p>
+        )}
+        {invitations.data && invitations.data.totalPages > 1 && (
+          <div className="portal-pagination">
+            <button
+              disabled={invitationPage === 1}
+              onClick={() => setInvitationPage(invitationPage - 1)}
+            >
+              Previous invitations
+            </button>
+            <span>
+              {invitationPage} / {invitations.data.totalPages}
+            </span>
+            <button
+              disabled={invitationPage >= invitations.data.totalPages}
+              onClick={() => setInvitationPage(invitationPage + 1)}
+            >
+              More invitations
+            </button>
+          </div>
+        )}
+      </section>
+      <Link className="portal-btn portal-btn--secondary" href="/donor/location">
+        Map, radius & location settings ?
+      </Link>
       <div className="portal-request-tools">
         <label className="portal-search">
           <Search size={17} />
@@ -203,6 +273,23 @@ export default function RequestsPage() {
                 </strong>
               </span>
             </div>
+            {selected.hospitalLatitude !== null &&
+              selected.hospitalLongitude !== null && (
+                <a
+                  className="portal-text-link"
+                  href={`https://www.openstreetmap.org/?mlat=${selected.hospitalLatitude}&mlon=${selected.hospitalLongitude}#map=15/${selected.hospitalLatitude}/${selected.hospitalLongitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View hospital location on OpenStreetMap
+                </a>
+              )}
+            {!selected.canAccept && (
+              <p className="portal-policy-note">
+                This referral needs rechecking or is no longer active. You
+                cannot accept it in its current state.
+              </p>
+            )}
             {selected.notes && <p>{selected.notes}</p>}
             <div className="portal-policy-note">
               <CalendarDays size={18} />
@@ -218,14 +305,30 @@ export default function RequestsPage() {
             <div className="portal-dialog-actions">
               <button
                 className="portal-button portal-button--secondary"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  selected.responseStatus === "invited" ||
+                  !selected.canAccept
+                }
                 onClick={() => void respond("saved")}
               >
                 Save
               </button>
               <button
                 className="portal-button portal-button--secondary"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  [
+                    "pending",
+                    "accepted",
+                    "scheduled",
+                    "completed",
+                    "declined",
+                    "rejected",
+                    "cancelled",
+                    "expired",
+                  ].includes(selected.responseStatus || "")
+                }
                 onClick={() => void respond("declined")}
               >
                 Decline
@@ -234,13 +337,25 @@ export default function RequestsPage() {
                 className="portal-button"
                 disabled={
                   busy ||
-                  ["pending", "accepted", "scheduled", "completed"].includes(
-                    selected.responseStatus || "",
-                  )
+                  !selected.canAccept ||
+                  [
+                    "pending",
+                    "accepted",
+                    "scheduled",
+                    "completed",
+                    "declined",
+                    "rejected",
+                    "cancelled",
+                    "expired",
+                  ].includes(selected.responseStatus || "")
                 }
                 onClick={() => void respond("accepted")}
               >
-                {busy ? "Updating…" : "I’m Interested"}
+                {busy
+                  ? "Updating..."
+                  : selected.responseStatus === "invited"
+                    ? "Accept Invitation"
+                    : "I'm Interested"}
               </button>
             </div>
             {[

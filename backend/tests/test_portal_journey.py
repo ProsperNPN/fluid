@@ -37,7 +37,7 @@ async def test_complete_donor_to_hospital_journey(client, db_session, admin_head
     verification = await client.post('/api/v1/hospital-verifications/submit', headers=hospital, data={'document_types':'registration_certificate'}, files=[('files', ('test.pdf', b'%PDF-1.4\nTest verification document', 'application/pdf'))])
     assert verification.status_code == 201, verification.text
     assert (await client.post(f"/api/v1/hospital-verifications/{verification.json()['id']}/decision", headers=admin_headers, json={'action':'verified','notes':'Test fixture approval'})).status_code == 200
-    donor_profile = {'full_name':'Journey Donor','blood_type':'A+','blood_type_known':True,'city':'Accra','date_of_birth':'1990-01-01','is_available':True,'latitude':5.60,'longitude':-0.18,'preferred_radius_km':25}
+    donor_profile = {'full_name':'Journey Donor','blood_type':'A+','blood_type_known':True,'city':'Accra','date_of_birth':'1990-01-01','is_available':True,'matching_opt_in':True,'latitude':5.60,'longitude':-0.18,'preferred_radius_km':25}
     assert (await client.put('/api/v1/profiles/donor/me', headers=donor, json=donor_profile)).status_code == 200
     now = datetime.now(timezone.utc)
     blood_request = await client.post('/api/v1/blood-requests', headers=hospital, json={'blood_type':'A+','component':'red_cells','units':2,'urgency':'urgent','location':'Accra','status':'published','latitude':5.60,'longitude':-0.18,'expires_at':(now+timedelta(days=1)).isoformat(),'required_by':(now+timedelta(days=2)).isoformat()})
@@ -58,29 +58,35 @@ async def test_complete_donor_to_hospital_journey(client, db_session, admin_head
     assert (await client.get('/api/v1/messages', headers=hospital)).json()['unread_count'] == 0
     assert (await client.post(f'/api/v1/donor-matches/responses/{response_id}/accept', headers=hospital)).status_code == 200
     aid = (await client.get('/api/v1/appointments?scope=donor', headers=donor)).json()['items'][0]['id']
-    proposed = await client.patch(f'/api/v1/appointments/{aid}/schedule', headers=donor, json={'scheduled_at':(now+timedelta(hours=5)).isoformat(),'internal_notes':'Donor must not set this'})
+    availability = {'enabled': True, 'timezone':'Africa/Accra', 'slot_minutes':15, 'capacity':1, 'hours':[{'weekday':d,'start':'00:00','end':'23:59'} for d in range(7)]}
+    assert (await client.put('/api/v1/appointments/policy', headers=hospital, json=availability)).status_code == 200
+    visit = (now + timedelta(minutes=30)).replace(second=0,microsecond=0)
+    visit = visit.replace(minute=(visit.minute // 15)*15)
+    proposed = await client.patch(f'/api/v1/appointments/{aid}/schedule', headers=donor, json={'scheduled_at':visit.isoformat(),'internal_notes':'Donor must not set this'})
     assert proposed.status_code == 200 and proposed.json()['status'] == 'pending'
-    assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=donor, json={'status':'confirmed'})).status_code == 403
+    assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=donor, json={'status':'confirmed'})).status_code == 409
     assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'confirmed','internal_notes':'Private hospital note'})).status_code == 200
     assert (await client.get('/api/v1/appointments', headers=donor)).json()['items'][0]['internal_notes'] is None
     assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'completed'})).status_code == 409
     assert (await client.post(f'/api/v1/donor-matches/responses/{response_id}/blood-type/verify', headers=hospital, json={'blood_type':'A+','clinical_confirmation':True})).status_code == 200
-    complete = await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'completed','screening_confirmed':True})
+    from app.services import appointment_scheduling
+    monkeypatch.setattr(appointment_scheduling, 'now_utc', lambda: visit)
+    assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'checked_in'})).status_code == 200
+    complete = await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'completed','screening_confirmed':True,'procedure_confirmed':True,'actual_units':1})
     assert complete.status_code == 200, complete.text
     assert (await client.patch(f'/api/v1/appointments/{aid}/status', headers=hospital, json={'status':'completed','screening_confirmed':True})).status_code == 409
     donor_read = (await client.get('/api/v1/profiles/donor/me', headers=donor)).json()
-    assert donor_read['last_donation_date'] == date.today().isoformat() and donor_read['blood_type_verified'] is True
+    assert donor_read['last_donation_date'] == visit.date().isoformat() and donor_read['blood_type_verified'] is True
     assert (await client.put('/api/v1/profiles/donor/me', headers=donor, json=donor_profile)).status_code == 409
     confirmation = await client.get(f'/api/v1/appointments/{aid}/confirmation', headers=donor)
     assert confirmation.status_code == 200 and aid in confirmation.text
     stock = await client.post('/api/v1/inventory', headers=hospital, json={'blood_type':'A+','component':'red_cells','units_available':10,'storage_location':'Test bank','collection_date':date.today().isoformat(),'expiration_date':(date.today()+timedelta(days=30)).isoformat(),'minimum_threshold':3})
     assert stock.status_code == 201
     stock_id = stock.json()['id']
-    assert (await client.post(f'/api/v1/inventory/{stock_id}/adjust', headers=hospital, json={'action':'reserve','units':8})).status_code == 200
-    assert (await client.post(f'/api/v1/inventory/{stock_id}/adjust', headers=hospital, json={'action':'use','units':3})).status_code == 409
-    await client.post(f'/api/v1/inventory/{stock_id}/adjust', headers=hospital, json={'action':'release','units':4})
-    await client.post(f'/api/v1/inventory/{stock_id}/adjust', headers=hospital, json={'action':'use','units':2})
-    assert len((await client.get(f'/api/v1/inventory/{stock_id}/transactions', headers=hospital)).json()['items']) == 4
+    assert stock.json()['units_available'] == 0  # Intake is quarantined, never implicitly released.
+    assert stock.json()['quarantined_units'] == 10
+    assert (await client.post(f'/api/v1/inventory/{stock_id}/adjust', headers=hospital, json={'action':'reserve','units':8,'reason':'Verified test reservation'})).status_code == 409
+    assert len((await client.get(f'/api/v1/inventory/{stock_id}/transactions', headers=hospital)).json()['items']) == 10
     assert (await client.get('/api/v1/workspace/overview', headers=donor)).json()['completed_donations'] == 1
     analytics = (await client.get('/api/v1/workspace/analytics', headers=hospital)).json()
     assert analytics['donations'] == 1 and analytics['total_requests'] == 1
@@ -88,18 +94,21 @@ async def test_complete_donor_to_hospital_journey(client, db_session, admin_head
 
 @pytest.mark.asyncio
 async def test_concurrent_inventory_reservations_are_serialized(client, app, db_session):
+    from tests.test_smart_inventory import reviewed_policy, unit, release, stock_request
     _, hospital, _ = await approved_hospital(client, db_session)
-    stock = (await client.post('/api/v1/inventory', headers=hospital, json={'blood_type':'O+','units_available':5,'storage_location':'Test bank','expiration_date':(date.today()+timedelta(days=30)).isoformat()})).json()
-    engine = db_session.bind
+    await reviewed_policy(client,hospital)
+    released=[await release(client,hospital,await unit(client,hospital,str(index))) for index in range(5)]
+    stock_id=released[0]['batch_id']
+    rid=await stock_request(client,hospital)
+    engine=db_session.bind
     async def independent_db():
-        async with AsyncSession(bind=engine, expire_on_commit=False) as session:
-            yield session
-    app.dependency_overrides[get_db] = independent_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://test') as independent:
-        results = await asyncio.gather(*[independent.post(f"/api/v1/inventory/{stock['id']}/adjust", headers=hospital, json={'action':'reserve','units':4}) for _ in range(2)])
-        assert sorted(result.status_code for result in results) == [200,409]
-        read = (await independent.get('/api/v1/inventory', headers=hospital)).json()['items'][0]
-        assert read['units_reserved'] == 4 and read['units_available'] == 5
+        async with AsyncSession(bind=engine, expire_on_commit=False) as session: yield session
+    app.dependency_overrides[get_db]=independent_db
+    async with AsyncClient(transport=ASGITransport(app=app),base_url='http://test') as independent:
+        responses=await asyncio.gather(*[independent.post(f'/api/v1/inventory/{stock_id}/adjust',headers=hospital,json={'action':'reserve','units':4,'reason':'Verified test reservation','request_id':rid,'compatibility_verified':True}) for _ in range(2)])
+        assert sorted(r.status_code for r in responses)==[200,409]
+    batch=await db_session.get(BloodInventory,stock_id);await db_session.refresh(batch)
+    assert batch.units_reserved==4 and batch.units_available==5
 
 @pytest.mark.asyncio
 async def test_unverified_and_other_hospital_cannot_access_records(client, db_session):
@@ -137,7 +146,7 @@ async def test_expired_requests_and_unknown_stock_are_not_available(client, db_s
     assert request.status == 'expired'
     inventory = (await client.get('/api/v1/inventory', headers=hospital)).json()
     assert inventory['items'][0]['alert_level'] == 'unknown'
-    assert (await client.post(f'/api/v1/inventory/{stock.id}/adjust', headers=hospital, json={'action':'reserve','units':1})).status_code == 409
+    assert (await client.post(f'/api/v1/inventory/{stock.id}/adjust', headers=hospital, json={'action':'reserve','units':1,'reason':'Verify unknown stock allocation'})).status_code == 409
     assert (await client.post('/api/v1/inventory', headers=hospital, json={'blood_type':'O+','units_available':5,'storage_location':'New bank'})).status_code == 422
 
 @pytest.mark.asyncio

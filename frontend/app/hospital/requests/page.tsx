@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Plus, Search, Users, MapPin } from "lucide-react";
 import { toast } from "sonner";
@@ -14,15 +14,18 @@ import {
   type HospitalRequest,
   type HospitalRequestInput,
 } from "@/services/hospital-requests-service";
+import { inventorySummary } from "@/services/smart-inventory-service";
 import { getHospitalProfile } from "@/services/profile-service";
-import { getApiErrorMessage } from "@/lib/api";
+import { saveLocation } from "@/services/location-service";
+import { LocationSelector } from "@/components/location/location-selector";
+import { getApiErrorMessage, getApiValidationIssues } from "@/lib/api";
 import {
   PortalDialog,
   PortalEmpty,
   PortalSkeleton,
   StatusPill,
 } from "@/components/portal/portal-ui";
-import type { BloodType } from "@/types";
+import type { BloodType, HospitalProfile } from "@/types";
 const initial: HospitalRequestInput = {
   bloodType: "O+",
   component: "red_cells",
@@ -48,6 +51,32 @@ function local(value: string | null) {
     .toISOString()
     .slice(0, 16);
 }
+function iso(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+}
+type FieldErrors = Partial<Record<keyof HospitalRequestInput, string>>;
+function validate(form: HospitalRequestInput, publishing: boolean): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].includes(form.bloodType)) errors.bloodType = "Choose a blood type.";
+  if (!["red_cells", "whole_blood", "plasma", "platelets"].includes(form.component)) errors.component = "Choose a blood component.";
+  if (!Number.isInteger(form.units) || form.units < 1 || form.units > 100) errors.units = "Enter a whole number from 1 to 100.";
+  if (!["routine", "urgent", "critical"].includes(form.urgency)) errors.urgency = "Choose an urgency.";
+  const required = form.requiredBy ? Date.parse(form.requiredBy) : NaN;
+  const expires = form.expiresAt ? Date.parse(form.expiresAt) : NaN;
+  if ((publishing || form.requiredBy) && (!Number.isFinite(required) || (publishing && required <= Date.now()))) errors.requiredBy = "Choose a future required-by date and time.";
+  if ((publishing || form.expiresAt) && (!Number.isFinite(expires) || (publishing && expires <= Date.now()))) errors.expiresAt = "Choose a future expiration date and time.";
+  if (Number.isFinite(required) && Number.isFinite(expires) && expires > required) errors.expiresAt = "Expiration must be on or before the required-by time.";
+  if (form.location.trim().length < 2) errors.location = "Confirm the hospital address using the location selector.";
+  if (publishing && (form.latitude === null || form.longitude === null || !Number.isFinite(form.latitude) || !Number.isFinite(form.longitude) || Math.abs(form.latitude) > 90 || Math.abs(form.longitude) > 180)) errors.location = "Confirm the hospital location using GPS, address search or the map.";
+  return errors;
+}
+function facilityDefaults(hospital: HospitalProfile | null) {
+  return { location: hospital?.address || hospital?.city || "", latitude: hospital?.latitude ?? null, longitude: hospital?.longitude ?? null, contactPerson: hospital?.authorizedRepresentative ?? null };
+}
+function requestError(error: unknown, fallback: string) {
+  return getApiValidationIssues(error).map((issue) => issue.message).join(" ") || getApiErrorMessage(error, fallback);
+}
 export default function RequestsPage() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
@@ -55,7 +84,15 @@ export default function RequestsPage() {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<string | null>(null);
   const [form, setForm] = useState(initial);
-  const [publishing, setPublishing] = useState(false);
+  const [hospital, setHospital] = useState<HospitalProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+  const [selectLocation, setSelectLocation] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [actionError, setActionError] = useState("");
+  const submitting = useRef(false);
   const [action, setAction] = useState<{
     item: HospitalRequest;
     type: "publish" | "cancel" | "prioritize" | "fulfill" | "close";
@@ -71,50 +108,104 @@ export default function RequestsPage() {
     [page, tab, search],
   );
   const q = usePortalQuery(loader);
+  const stockLoader = useCallback(
+    () => (open ? inventorySummary() : Promise.resolve(null)),
+    [open],
+  );
+  const stock = usePortalQuery(stockLoader);
+  const relevantStock = stock.data?.groups.find(
+    (g) => g.blood_type === form.bloodType && g.component === form.component,
+  );
   useEffect(() => {
-    void getHospitalProfile()
-      .then((p) =>
-        setForm((f) => ({
-          ...f,
-          location: p.address,
-          latitude: p.latitude,
-          longitude: p.longitude,
-          contactPerson: p.authorizedRepresentative,
-        })),
-      )
-      .catch(() => undefined);
-    if (new URLSearchParams(window.location.search).get("create"))
-      setOpen(true);
+    const prefill = new URLSearchParams(window.location.search);
+    setForm((f) => ({ ...f,
+      bloodType: ["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"].includes(prefill.get("blood_type") || "") ? prefill.get("blood_type") as BloodType : f.bloodType,
+      component: ["whole_blood", "red_cells", "plasma", "platelets"].includes(prefill.get("component") || "") ? prefill.get("component")! : f.component,
+      units: Math.min(100, Math.max(1, Math.trunc(Number(prefill.get("units"))) || 1)),
+    }));
+    if (prefill.get("create")) setOpen(true);
   }, []);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    setProfileLoading(true);
+    setProfileError("");
+    void getHospitalProfile().then((p) => {
+      if (!alive) return;
+      setHospital(p);
+      setForm((f) => {
+        const defaults = facilityDefaults(p);
+        if (!edit) return { ...f, ...defaults, contactPerson: f.contactPerson || defaults.contactPerson };
+        return f.latitude === null && f.longitude === null
+          ? { ...f, latitude: defaults.latitude, longitude: defaults.longitude, location: f.location || defaults.location }
+          : f;
+      });
+    }).catch((error) => {
+      if (alive) setProfileError(requestError(error, "Unable to load your saved hospital location. Retry or select the facility below."));
+    }).finally(() => { if (alive) setProfileLoading(false); });
+    return () => { alive = false; };
+  }, [open, edit]);
+  function fieldState(field: keyof HospitalRequestInput) {
+    return { id: `request-${field}`, "aria-invalid": !!errors[field], "aria-describedby": errors[field] ? `request-${field}-error` : undefined };
+  }
+  function fieldError(field: keyof HospitalRequestInput) {
+    return errors[field] ? <span id={`request-${field}-error`} className="text-sm text-red-700" role="alert">{errors[field]}</span> : null;
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (submitting.current) return;
+    if (profileLoading || selectLocation) {
+      setFormError(profileLoading ? "Wait for the saved hospital location to load." : "Confirm the facility location or close the location selector before saving.");
+      return;
+    }
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const intent = submitter instanceof HTMLButtonElement ? submitter.value : null;
+    const publishing = intent === "publish" || (!edit && intent !== "draft");
+    const active = publishing || (!!edit && form.status === "published");
+    const validation = validate(form, active);
+    setErrors(validation);
+    setFormError("");
+    if (Object.keys(validation).length) {
+      setFormError("Review the highlighted fields before saving.");
+      return;
+    }
+    submitting.current = true;
     setBusy(true);
     try {
-      if (edit) await updateHospitalRequest(edit, { ...form, status: "draft" });
+      if (edit) {
+        await updateHospitalRequest(edit, { ...form, status: "draft" });
+        if (publishing) await publishHospitalRequest(edit);
+      }
       else
         await createHospitalRequest({
           ...form,
           status: publishing ? "published" : "draft",
         });
-      toast.success(
-        edit
-          ? "Draft updated."
-          : publishing
-            ? "Request published. Relevant donors notified."
-            : "Draft saved.",
-      );
+      const message = publishing ? "Blood request published successfully." : edit ? "Request updated." : "Draft saved.";
+      toast.success(message);
+      setSuccess(message);
       setOpen(false);
       setEdit(null);
+      setTab("all"); setPage(1); setSearch("");
       await q.refresh();
     } catch (e) {
-      toast.error(getApiErrorMessage(e, "Unable to save request."));
+      const fields: Record<string, keyof HospitalRequestInput> = { blood_type: "bloodType", component: "component", units: "units", urgency: "urgency", required_by: "requiredBy", expires_at: "expiresAt", location: "location", latitude: "location", longitude: "location" };
+      const next: FieldErrors = {};
+      for (const issue of getApiValidationIssues(e)) { const field = issue.field && fields[issue.field]; if (field) next[field] = issue.message; }
+      setErrors(next);
+      const message = requestError(e, "Unable to save request. Please try again.");
+      setFormError(message);
+      toast.error(message);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
   async function mutate(event: FormEvent) {
     event.preventDefault();
-    if (!action) return;
+    if (!action || submitting.current) return;
+    submitting.current = true;
+    setActionError("");
     setBusy(true);
     try {
       if (action.type === "publish")
@@ -129,12 +220,18 @@ export default function RequestsPage() {
           reason,
           record_confirmed: confirmed,
         });
-      toast.success("Request updated and audited.");
+      const message = action.type === "publish" ? "Blood request published successfully." : "Request updated and audited.";
+      toast.success(message);
+      setSuccess(message);
+      if (action.type === "publish") { setTab("all"); setPage(1); setSearch(""); }
       setAction(null);
       await q.refresh();
     } catch (e) {
-      toast.error(getApiErrorMessage(e, "Unable to update request."));
+      const message = requestError(e, "Unable to update request.");
+      setActionError(message);
+      toast.error(message);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -154,12 +251,15 @@ export default function RequestsPage() {
       department: item.department,
       contactPerson: item.contactPerson,
       notes: item.notes,
+      status: item.status === "draft" ? "draft" : "published",
     });
-    setPublishing(false);
+    setErrors({}); setFormError(""); setSelectLocation(false);
+    setProfileLoading(true);
     setOpen(true);
   }
   return (
     <div className="portal-stack">
+      {success && <p role="status" className="portal-policy-note">{success}</p>}
       <div className="portal-request-tools">
         <label className="portal-search">
           <Search size={17} />
@@ -176,8 +276,10 @@ export default function RequestsPage() {
         <button
           className="portal-button"
           onClick={() => {
+            setForm({ ...initial, ...facilityDefaults(hospital) });
+            setErrors({}); setFormError(""); setSelectLocation(false); setSuccess("");
             setEdit(null);
-            setPublishing(false);
+            setProfileLoading(true);
             setOpen(true);
           }}
         >
@@ -264,7 +366,7 @@ export default function RequestsPage() {
                       className="portal-button portal-button--secondary"
                       onClick={() => editDraft(item)}
                     >
-                      Edit Draft
+                      Edit Request
                     </button>
                     <button
                       className="portal-button"
@@ -277,6 +379,12 @@ export default function RequestsPage() {
                     item.status,
                   ) ? (
                   <>
+                    <button
+                      className="portal-button portal-button--secondary"
+                      onClick={() => editDraft(item)}
+                    >
+                      Edit Request
+                    </button>
                     <Link
                       className="portal-button portal-button--secondary"
                       href="/hospital/donors"
@@ -344,14 +452,31 @@ export default function RequestsPage() {
       )}
       {open && (
         <PortalDialog
-          title={edit ? "Edit Request Draft" : "Create a Blood Request"}
-          onClose={() => setOpen(false)}
+          title={edit ? "Edit Blood Request" : "Create a Blood Request"}
+          onClose={() => { if (!submitting.current) setOpen(false); }}
         >
-          <form onSubmit={submit} className="portal-stack">
+          <form onSubmit={submit} noValidate className="portal-stack" aria-busy={busy}>
+            {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+            <fieldset disabled={busy} className="portal-stack min-w-0">
+            <p className="portal-policy-note">
+              {stock.error ? (
+                "Current stock is unavailable. Verify stock before reviewing replenishment."
+              ) : !stock.data ? (
+                "Loading current clinically released stock…"
+              ) : (
+                <>
+                  Current {form.bloodType} {form.component.replaceAll("_", " ")}{" "}
+                  stock: {relevantStock?.available ?? 0} clinically released
+                  unreserved unit(s). Review and approve this request before
+                  publishing.
+                </>
+              )}
+            </p>
             <div className="portal-form-grid">
               <label className="portal-field">
                 Blood type
                 <select
+                  {...fieldState("bloodType")}
                   value={form.bloodType}
                   onChange={(e) =>
                     setForm({ ...form, bloodType: e.target.value as BloodType })
@@ -363,10 +488,12 @@ export default function RequestsPage() {
                     ),
                   )}
                 </select>
+                {fieldError("bloodType")}
               </label>
               <label className="portal-field">
                 Component
                 <select
+                  {...fieldState("component")}
                   value={form.component}
                   onChange={(e) =>
                     setForm({ ...form, component: e.target.value })
@@ -380,10 +507,12 @@ export default function RequestsPage() {
                     ),
                   )}
                 </select>
+                {fieldError("component")}
               </label>
               <label className="portal-field">
                 Units needed
                 <input
+                  {...fieldState("units")}
                   required
                   type="number"
                   min={1}
@@ -393,10 +522,12 @@ export default function RequestsPage() {
                     setForm({ ...form, units: Number(e.target.value) })
                   }
                 />
+                {fieldError("units")}
               </label>
               <label className="portal-field">
                 Urgency
                 <select
+                  {...fieldState("urgency")}
                   value={form.urgency}
                   onChange={(e) =>
                     setForm({
@@ -409,37 +540,26 @@ export default function RequestsPage() {
                     <option key={t}>{t}</option>
                   ))}
                 </select>
+                {fieldError("urgency")}
               </label>
               {(["requiredBy", "expiresAt"] as const).map((key) => (
                 <label key={key} className="portal-field">
                   {key === "requiredBy" ? "Required by" : "Request expires"}
                   <input
+                    {...fieldState(key)}
                     type="datetime-local"
-                    required={publishing}
+                    required={form.status === "published"}
                     value={local(form[key])}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        [key]: e.target.value
-                          ? new Date(e.target.value).toISOString()
-                          : null,
+                        [key]: iso(e.target.value),
                       })
                     }
                   />
+                  {fieldError(key)}
                 </label>
               ))}
-              <label className="portal-field">
-                Location
-                <input
-                  required
-                  minLength={2}
-                  maxLength={255}
-                  value={form.location}
-                  onChange={(e) =>
-                    setForm({ ...form, location: e.target.value })
-                  }
-                />
-              </label>
               <label className="portal-field">
                 Department
                 <input
@@ -447,38 +567,6 @@ export default function RequestsPage() {
                   value={form.department || ""}
                   onChange={(e) =>
                     setForm({ ...form, department: e.target.value || null })
-                  }
-                />
-              </label>
-              <label className="portal-field">
-                Latitude
-                <input
-                  type="number"
-                  step="any"
-                  min={-90}
-                  max={90}
-                  value={form.latitude ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      latitude: e.target.value ? Number(e.target.value) : null,
-                    })
-                  }
-                />
-              </label>
-              <label className="portal-field">
-                Longitude
-                <input
-                  type="number"
-                  step="any"
-                  min={-180}
-                  max={180}
-                  value={form.longitude ?? ""}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      longitude: e.target.value ? Number(e.target.value) : null,
-                    })
                   }
                 />
               </label>
@@ -493,6 +581,36 @@ export default function RequestsPage() {
                 />
               </label>
             </div>
+            <p className="portal-small-note">Choose future times. The request expires on or before the required-by time, when donor responses should stop.</p>
+            <section aria-label="Hospital request location" className="portal-policy-note">
+              <p><strong>Hospital location</strong></p>
+              <p>{profileLoading ? "Loading saved hospital location…" : form.latitude !== null && form.longitude !== null ? form.location || "Confirmed facility pin" : "No facility pin saved. Use GPS or select the hospital on the map."}</p>
+              {profileError && <p role="alert" className="text-sm text-red-700">{profileError}</p>}
+              {fieldError("location")}
+              {profileError && <button type="button" className="portal-text-link" disabled={profileLoading} onClick={async () => {
+                setProfileLoading(true);
+                try { const p = await getHospitalProfile(); setHospital(p); setForm((f) => ({ ...f, ...facilityDefaults(p) })); setProfileError(""); }
+                catch (error) { setProfileError(requestError(error, "Unable to load the saved hospital location.")); }
+                finally { setProfileLoading(false); }
+              }}>Retry saved location</button>}
+              <button type="button" className="portal-button portal-button--secondary mt-2" disabled={profileLoading} onClick={() => setSelectLocation((value) => !value)}>
+                <MapPin size={16} />{selectLocation ? "Close location selector" : form.latitude !== null && form.longitude !== null ? "Review or change facility location" : "Set hospital location"}
+              </button>
+            </section>
+            {selectLocation && <LocationSelector
+              label="Confirm hospital facility location"
+              showCoordinateFields={false}
+              value={{ ...hospital, latitude: form.latitude, longitude: form.longitude, address: form.location }}
+              onConfirm={async (selection) => {
+                const saved = await saveLocation(selection);
+                setForm((f) => ({ ...f, location: saved.address || selection.address, latitude: saved.latitude, longitude: saved.longitude }));
+                setErrors((old) => ({ ...old, location: undefined }));
+                setProfileError("");
+                setSelectLocation(false);
+                setHospital(await getHospitalProfile());
+                setFormError(saved.confirmed_at ? "" : "Facility location saved. Hospital verification must be completed before publishing from this location.");
+              }}
+            />}
             <label className="portal-field">
               Public coordination notes
               <textarea
@@ -509,32 +627,29 @@ export default function RequestsPage() {
               Matching uses the request’s component and coordinates; clinical
               clearance remains with the hospital.
             </p>
-            {!edit && (
-              <label className="portal-toggle-row">
-                <span>Publish after saving and notify appropriate donors</span>
-                <input
-                  type="checkbox"
-                  checked={publishing}
-                  onChange={(e) => setPublishing(e.target.checked)}
-                />
-              </label>
-            )}
-            <button className="portal-button" type="submit" disabled={busy}>
-              {busy
-                ? "Saving…"
-                : publishing
-                  ? "Confirm & Publish"
-                  : "Save Draft"}
-            </button>
+            {selectLocation && <p className="portal-small-note">Confirm the facility location or close the selector before saving.</p>}
+            <div className="portal-dialog-actions">
+              {!edit && <button className="portal-button" type="submit" name="intent" value="publish" disabled={busy || profileLoading || selectLocation}>
+                {busy ? "Saving…" : "Publish Request"}
+              </button>}
+              <button className="portal-button portal-button--secondary" type="submit" name="intent" value="draft" disabled={busy || profileLoading || selectLocation}>
+                {busy ? "Saving…" : edit ? "Save Changes" : "Save Draft"}
+              </button>
+              {edit && form.status === "draft" && <button className="portal-button" type="submit" name="intent" value="publish" disabled={busy || profileLoading || selectLocation}>
+                {busy ? "Saving…" : "Save & Publish"}
+              </button>}
+            </div>
+            </fieldset>
           </form>
         </PortalDialog>
       )}
       {action && (
         <PortalDialog
           title={`Confirm request ${action.type}`}
-          onClose={() => setAction(null)}
+          onClose={() => { if (!submitting.current) { setAction(null); setActionError(""); } }}
         >
           <form className="portal-stack" onSubmit={mutate}>
+            {actionError && <p role="alert" className="text-sm text-red-700">{actionError}</p>}
             <p>
               {action.item.bloodType} ·{" "}
               {action.item.component.replaceAll("_", " ")} ·{" "}

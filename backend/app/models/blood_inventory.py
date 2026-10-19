@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import date, datetime
 from uuid import uuid4
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, CheckConstraint, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -26,3 +26,5 @@ class BloodInventory(Base):
     minimum_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=5, server_default="5")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    legacy_reported_counts: Mapped[dict | None] = mapped_column(JSON)

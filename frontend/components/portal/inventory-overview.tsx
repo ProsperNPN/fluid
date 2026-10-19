@@ -14,8 +14,15 @@ export function InventoryOverview({ items }: { items: InventoryItem[] }) {
             (sum, i) => sum + Math.max(0, i.unitsAvailable - i.unitsReserved),
             0,
           );
-          const threshold = usable.reduce(
-            (sum, i) => sum + i.minimumThreshold,
+          const thresholds = new Map<string, number>();
+          usable.forEach((i) =>
+            thresholds.set(
+              i.component,
+              Math.max(thresholds.get(i.component) || 0, i.minimumThreshold),
+            ),
+          );
+          const threshold = Array.from(thresholds.values()).reduce(
+            (sum, n) => sum + n,
             0,
           );
           const level = !rows.length
@@ -66,8 +73,9 @@ export function InventoryOverview({ items }: { items: InventoryItem[] }) {
         </span>
       </div>
       <p className="portal-small-note">
-        Components are shown per batch in Inventory. Expired batches are
-        excluded from usable totals.
+        Totals combine components for display. Open Inventory for
+        component-specific stock; only clinically released, tested, unexpired
+        units are included.
       </p>
     </>
   );

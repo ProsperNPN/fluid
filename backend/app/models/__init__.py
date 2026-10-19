@@ -15,3 +15,9 @@ from app.models.conversation import Conversation, Message
 from app.models.hospital_verification import HospitalVerification, HospitalVerificationDocument, HospitalVerificationReview
 
 __all__ = ["Base", "User", "RefreshToken", "PasswordResetToken", "BloodRequest", "DonorProfile", "HospitalProfile", "Appointment", "DonorResponse", "Notification", "HospitalMembership", "BloodInventory", "AuditLog", "HospitalVerification", "HospitalVerificationDocument", "HospitalVerificationReview"]
+
+from app.models.emergency_alert import EmergencyAlert, AlertDelivery
+
+from app.models.appointment_schedule import AppointmentPolicy, AppointmentOccupancy, AppointmentEvent, AppointmentReminder
+
+from app.models.inventory_unit import InventoryUnit, InventoryComponentPolicy, InventoryStockPolicy, InventoryMovement, InventoryAlertState

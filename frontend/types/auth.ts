@@ -9,6 +9,7 @@ export interface AuthUser {
 }
 
 export interface RegisterPayload {
+  location?: import("@/services/location-service").LocationSelection;
   email: string;
   password: string;
   full_name?: string;

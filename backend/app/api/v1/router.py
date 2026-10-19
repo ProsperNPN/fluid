@@ -38,3 +38,12 @@ api_router.include_router(inventory_router)
 api_router.include_router(staff_router)
 api_router.include_router(verifications_router)
 api_router.include_router(protected_router)
+
+from app.api.v1.endpoints import locations
+api_router.include_router(locations.router)
+
+from app.api.v1.endpoints.emergencies import router as emergencies_router
+api_router.include_router(emergencies_router)
+
+from app.api.v1.endpoints.inventory_units import router as inventory_units_router
+api_router.include_router(inventory_units_router)

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
+from app.schemas.location import LocationSelection
 
 
 class TokenPayload(BaseModel):
@@ -21,6 +22,7 @@ class TokenPair(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    location: LocationSelection | None = None
     email: str
     password: str = Field(min_length=8)
     full_name: str | None = None

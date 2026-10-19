@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Crosshair, MapPin, Save, ShieldCheck } from "lucide-react";
+import { Save, ShieldCheck } from "lucide-react";
+import { LocationSelector } from "@/components/location/location-selector";
+import { saveLocation } from "@/services/location-service";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +23,6 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<DonorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -47,35 +48,6 @@ export default function ProfilePage() {
     value: DonorProfile[K],
   ) =>
     setProfile((current) => (current ? { ...current, [key]: value } : current));
-
-  const locate = () => {
-    if (!navigator.geolocation) {
-      toast.error(
-        "Location services are unavailable. Enter your location manually.",
-      );
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        change("latitude", coords.latitude);
-        change("longitude", coords.longitude);
-        toast.success(
-          "Coordinates added. Confirm the city and address before saving.",
-        );
-        setLocating(false);
-      },
-      (locationError) => {
-        toast.error(
-          locationError.code === 1
-            ? "Location permission was denied. Enter your location manually."
-            : "Unable to determine your location. Enter it manually.",
-        );
-        setLocating(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
-    );
-  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -236,112 +208,43 @@ export default function ProfilePage() {
           </label>
           <label className="text-sm font-medium text-slate-700">
             Preferred radius (km)
-            <input
-              type="number"
-              min="1"
-              max="500"
+            <select
               className={fieldClass}
               value={profile.preferredRadiusKm}
               onChange={(e) =>
                 change("preferredRadiusKm", Number(e.target.value))
               }
-            />
+            >
+              {[5, 10, 25, 50, 100].map((r) => (
+                <option key={r} value={r}>
+                  {r} km
+                </option>
+              ))}
+            </select>
           </label>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="rounded-xl bg-red-50 p-2 text-[#C0392B]">
-              <MapPin className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold text-slate-950">
-                Donation location
-              </h2>
-              <p className="text-sm text-slate-500">
-                Manual location entry is always available.
-              </p>
-            </div>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={locating}
-            onClick={locate}
-          >
-            <Crosshair className="mr-2 h-4 w-4" />
-            {locating ? "Locating..." : "Use my current location"}
-          </Button>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm font-medium text-slate-700">
-            Address
-            <input
-              className={fieldClass}
-              value={profile.address ?? ""}
-              onChange={(e) => change("address", e.target.value || null)}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            City
-            <input
-              required
-              className={fieldClass}
-              value={profile.city}
-              onChange={(e) => change("city", e.target.value)}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            State / region
-            <input
-              className={fieldClass}
-              value={profile.region ?? ""}
-              onChange={(e) => change("region", e.target.value || null)}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Country
-            <input
-              required
-              className={fieldClass}
-              value={profile.country}
-              onChange={(e) => change("country", e.target.value)}
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Latitude
-            <input
-              type="number"
-              step="any"
-              className={fieldClass}
-              value={profile.latitude ?? ""}
-              onChange={(e) =>
-                change(
-                  "latitude",
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Longitude
-            <input
-              type="number"
-              step="any"
-              className={fieldClass}
-              value={profile.longitude ?? ""}
-              onChange={(e) =>
-                change(
-                  "longitude",
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
-            />
-          </label>
-        </div>
-      </section>
+      <LocationSelector
+        value={profile}
+        label="Your donation location"
+        onConfirm={async (selection) => {
+          await saveLocation(selection);
+          setProfile((current) =>
+            current
+              ? {
+                  ...current,
+                  latitude: selection.latitude,
+                  longitude: selection.longitude,
+                  address: selection.address,
+                  city: selection.city,
+                  region: selection.region,
+                  country: selection.country,
+                }
+              : current,
+          );
+        }}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="text-base font-semibold text-slate-950">
@@ -350,6 +253,10 @@ export default function ProfilePage() {
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {[
             ["isAvailable", "Available to donate"],
+            [
+              "matchingOptIn",
+              "Allow location-based matching and hospital invitations (approximate distance only)",
+            ],
             ["notifyUrgentRequests", "Urgent request alerts"],
             ["notifyAppointments", "Appointment updates"],
             ["notifyEligibility", "Eligibility reminders"],

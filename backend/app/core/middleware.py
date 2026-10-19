@@ -19,7 +19,7 @@ async def hardening_middleware(request: Request, call_next) -> Response:  # type
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(self)"
 
     if request.url.path.startswith(f"{settings.API_V1_STR}/auth"):
         response.headers["Cache-Control"] = "no-store"

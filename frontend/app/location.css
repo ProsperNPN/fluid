@@ -1,0 +1,254 @@
+.fluid-location-workspace {
+  display: grid;
+  gap: 22px;
+}
+.fluid-location-workspace h1,
+.fluid-location-selector h2,
+.fluid-location-controls h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fluid-location-selector {
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 20px;
+  display: grid;
+  gap: 14px;
+  color: #172333;
+  min-width: 0;
+}
+.fluid-location-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.fluid-location-heading h2,
+.fluid-location-controls h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+.fluid-location-heading p,
+.fluid-location-hint {
+  font-size: 13px;
+  color: #526175;
+  line-height: 1.6;
+}
+.fluid-location-selector button,
+.fluid-location-controls select,
+.fluid-nearby select {
+  min-height: 44px;
+}
+.fluid-location-selector label,
+.fluid-location-controls label,
+.fluid-nearby > label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.fluid-location-selector input,
+.fluid-location-controls select,
+.fluid-nearby select {
+  background: #fff;
+  color: #172333;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 10px 12px;
+  width: 100%;
+  min-width: 0;
+}
+.fluid-location-selector input:focus,
+.fluid-location-controls select:focus,
+.fluid-nearby select:focus {
+  outline: 2px solid #c0392b;
+  outline-offset: 2px;
+}
+.fluid-location-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fluid-location-search input {
+  flex: 1;
+}
+.fluid-location-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  max-height: 240px;
+  overflow: auto;
+}
+.fluid-location-results button {
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+  font-size: 13px;
+}
+.fluid-location-results button:hover,
+.fluid-location-results button:focus-visible {
+  background: #fff1ef;
+}
+.fluid-location-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.fluid-location-fields label {
+  display: grid;
+  gap: 5px;
+}
+.fluid-location-error {
+  color: #9f241b;
+  background: #fff0ed;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+}
+.fluid-location-status {
+  font-size: 13px;
+  color: #166534;
+}
+.fluid-location-map {
+  height: 320px;
+  min-height: 250px;
+  width: 100%;
+  isolation: isolate;
+  z-index: 0;
+  border-radius: 14px;
+  border: 1px solid #dce3ea;
+}
+.fluid-location-map-wrap {
+  min-width: 0;
+}
+.fluid-location-map-wrap > p {
+  font-size: 12px;
+  color: #9f241b;
+}
+.fluid-location-controls,
+.fluid-nearby {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+.fluid-location-controls select,
+.fluid-nearby select {
+  display: block;
+  max-width: 220px;
+  margin-top: 6px;
+}
+.fluid-live-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.6;
+}
+.fluid-live-toggle input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: #c0392b;
+}
+.fluid-location-actions {
+  display: flex;
+  gap: 8px;
+}
+.fluid-location-actions button {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 44px;
+  border: 1px solid #cbd5e1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.fluid-location-actions button[aria-pressed="true"] {
+  background: #fff0ed;
+  color: #a6291e;
+  border-color: #c0392b;
+}
+.fluid-nearby-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.fluid-nearby-lists h3 {
+  font-weight: 700;
+  font-size: 14px;
+}
+.fluid-nearby-lists article {
+  display: grid;
+  gap: 5px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 0;
+  font-size: 13px;
+}
+.fluid-nearby-lists span {
+  color: #526175;
+}
+.fluid-nearby-lists a {
+  color: #a6291e;
+  font-weight: 600;
+}
+.fluid-nearby-lists p {
+  font-size: 13px;
+  color: #526175;
+  padding-top: 10px;
+}
+.fluid-location-selector .portal-btn {
+  background: #c0392b;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 11px;
+  font-size: 13px;
+  font-weight: 600;
+  justify-self: start;
+}
+.fluid-location-selector button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.fluid-location-map .leaflet-control-attribution {
+  font-size: 10px;
+  max-width: 100%;
+  white-space: normal;
+}
+.fluid-location-map .leaflet-control-zoom a {
+  min-height: 30px;
+}
+.fluid-location-map a:focus-visible,
+.fluid-location-selector button:focus-visible {
+  outline: 2px solid #c0392b;
+  outline-offset: 2px;
+}
+@media (max-width: 600px) {
+  .fluid-location-fields,
+  .fluid-nearby-lists {
+    grid-template-columns: 1fr;
+  }
+  .fluid-location-selector,
+  .fluid-location-controls,
+  .fluid-nearby {
+    padding: 16px;
+  }
+  .fluid-location-map {
+    height: 280px;
+  }
+  .fluid-location-selector .portal-btn {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fluid-location-selector .animate-spin {
+    animation: none;
+  }
+}

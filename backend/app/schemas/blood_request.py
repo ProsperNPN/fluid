@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 RequestStatus = Literal["draft", "published", "partially_fulfilled", "fulfilled", "cancelled", "expired"]
 Urgency = Literal["routine", "urgent", "critical"]
 
 class BloodRequestCreate(BaseModel):
+    model_config = {"str_strip_whitespace": True}
     blood_type: BloodType
     component: Literal["whole_blood", "red_cells", "plasma", "platelets"] = "whole_blood"
     units: int = Field(ge=1, le=100)
@@ -14,9 +15,9 @@ class BloodRequestCreate(BaseModel):
     patient_category: str | None = Field(default=None, max_length=80)
     required_by: datetime | None = None
     expires_at: datetime | None = None
-    location: str = Field(min_length=2, max_length=255)
-    latitude: float | None = Field(default=None, ge=-90, le=90)
-    longitude: float | None = Field(default=None, ge=-180, le=180)
+    location: str = Field(default="", max_length=255)
+    latitude: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    longitude: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     department: str | None = Field(default=None, max_length=120)
     contact_person: str | None = Field(default=None, max_length=160)
     notes: str | None = Field(default=None, max_length=2000)
@@ -24,11 +25,15 @@ class BloodRequestCreate(BaseModel):
     visibility: Literal["matched", "regional"] = "matched"
     status: Literal["draft", "published"] = "draft"
 
-    @model_validator(mode="after")
-    def validate_dates(self):
-        if any(value and value.tzinfo is None for value in [self.required_by, self.expires_at]): raise ValueError("Request times must include a time zone")
-        if self.required_by and self.expires_at and self.expires_at > self.required_by: raise ValueError("Expiration must be on or before the required-by time")
-        return self
+    @field_validator("required_by", "expires_at")
+    @classmethod
+    def validate_dates(cls, value, info: ValidationInfo):
+        if value is not None and value.tzinfo is None:
+            raise ValueError("Request times must include a time zone")
+        required = info.data.get("required_by")
+        if info.field_name == "expires_at" and value and required and value > required:
+            raise ValueError("Expiration must be on or before the required-by time")
+        return value
 
 class BloodRequestUpdate(BloodRequestCreate):
     status: Literal["draft"] = "draft"

@@ -14,3 +14,7 @@ bcrypt>=4.0.1,<5
 pytest>=8.4,<10
 pytest-asyncio>=1.0,<2
 httpx>=0.28,<1
+
+tzdata>=2025.2
+
+qrcode>=8.2,<9

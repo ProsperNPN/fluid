@@ -18,12 +18,12 @@ export const donationHistory: DonationHistoryItem[] = [
 ];
 
 export const donorAppointments: Appointment[] = [
-  { id: 'APT-01', bloodRequestId: 'REQ-104', hospitalName: 'City General', donorName: 'Donor', bloodType: 'O+', scheduledAt: '2026-07-11T10:30:00Z', status: 'confirmed', location: 'City General', units: 1, department: null, contactPerson: null, internalNotes: null }
+  { component: 'red_cells', endsAt: null, isScheduled: true, timezone: 'Africa/Accra', proposedBy: 'hospital', preparationInstructions: '', cancellationReason: null, version: 0, checkedInAt: null, id: 'APT-01', bloodRequestId: 'REQ-104', hospitalName: 'City General', donorName: 'Donor', bloodType: 'O+', scheduledAt: '2026-07-11T10:30:00Z', status: 'confirmed', location: 'City General', units: 1, department: null, contactPerson: null, internalNotes: null }
 ];
 
 export const donorNotifications: NotificationItem[] = [
-  { id: 'N-1', type: 'request', title: 'Urgent request', message: 'Urgent O+ request near your location.', time: '5m ago', level: 'warning', isRead: false, relatedPath: null },
-  { id: 'N-2', type: 'appointment', title: 'Appointment reminder', message: 'Appointment reminder for July 11.', time: '1h ago', level: 'info', isRead: true, relatedPath: null }
+  { createdAt: '2026-07-10T12:00:00Z', emergency: null, id: 'N-1', type: 'request', title: 'Urgent request', message: 'Urgent O+ request near your location.', time: '5m ago', level: 'warning', isRead: false, relatedPath: null },
+  { createdAt: '2026-07-10T11:00:00Z', emergency: null, id: 'N-2', type: 'appointment', title: 'Appointment reminder', message: 'Appointment reminder for July 11.', time: '1h ago', level: 'info', isRead: true, relatedPath: null }
 ];
 
 export const hospitalOverview = [
@@ -44,7 +44,7 @@ export const hospitalDonorResponses = [
 ];
 
 export const hospitalAppointments: Appointment[] = [
-  { id: 'H-APT-1', bloodRequestId: 'REQ-201', hospitalName: 'Your Hospital', donorName: 'Ama K.', bloodType: 'A-', scheduledAt: '2026-07-08T14:00:00Z', status: 'confirmed', location: 'Unit 4, Donation Wing', units: 1, department: null, contactPerson: null, internalNotes: null }
+  { component: 'red_cells', endsAt: null, isScheduled: true, timezone: 'Africa/Accra', proposedBy: 'hospital', preparationInstructions: '', cancellationReason: null, version: 0, checkedInAt: null, id: 'H-APT-1', bloodRequestId: 'REQ-201', hospitalName: 'Your Hospital', donorName: 'Ama K.', bloodType: 'A-', scheduledAt: '2026-07-08T14:00:00Z', status: 'confirmed', location: 'Unit 4, Donation Wing', units: 1, department: null, contactPerson: null, internalNotes: null }
 ];
 
 export const adminOverview = [

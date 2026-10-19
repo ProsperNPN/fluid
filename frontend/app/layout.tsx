@@ -5,6 +5,8 @@ import { AppToaster } from '@/components/ui/toaster';
 import './globals.css';
 import './public.css';
 import './portal.css';
+import 'leaflet/dist/leaflet.css';
+import './location.css';
 
 const inter = localFont({
   src: './fonts/Inter-Latin.woff2',

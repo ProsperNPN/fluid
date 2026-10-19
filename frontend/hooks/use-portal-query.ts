@@ -38,10 +38,16 @@ export function usePortalQuery<T>(loader: () => Promise<T>, interval = 15000) {
       if (document.visibilityState === "visible") void refresh();
     };
     document.addEventListener("visibilitychange", visible);
+    window.addEventListener("focus", visible);
+    window.addEventListener("fluid:location-updated", visible);
+    window.addEventListener("fluid:live-update", visible);
     return () => {
       sequence.current++;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener("focus", visible);
+      window.removeEventListener("fluid:location-updated", visible);
+      window.removeEventListener("fluid:live-update", visible);
     };
   }, [refresh, interval]);
   return { data, loading, error, refresh };

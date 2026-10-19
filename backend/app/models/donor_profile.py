@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from datetime import date
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -30,9 +30,14 @@ class DonorProfile(Base):
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     region: Mapped[str | None] = mapped_column(String(120), nullable=True)
     country: Mapped[str] = mapped_column(String(120), nullable=False, default="Ghana", server_default="Ghana")
+    location_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    location_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    location_source: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    location_accuracy_m: Mapped[float | None] = mapped_column(Float, nullable=True)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_available: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    matching_opt_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     is_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     last_donation_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notify_urgent_requests: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
@@ -47,3 +52,9 @@ class DonorProfile(Base):
     )
 
     user = relationship("User")
+
+    notify_email_alerts: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    notify_sms_alerts: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+
+    appointment_timezone: Mapped[str] = mapped_column(String(80), default="Africa/Accra", server_default="Africa/Accra")
+    appointment_preferences: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")

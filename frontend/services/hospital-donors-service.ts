@@ -68,9 +68,9 @@ function parse(data: unknown, context: string): HospitalDonorResponse {
     ),
   };
 }
-export async function listHospitalDonorResponses() {
+export async function listHospitalDonorResponses(page = 1) {
   const response = await apiClient.get<unknown>("/api/v1/donor-matches", {
-    params: { page: 1, page_size: 50 },
+    params: { page, page_size: 50 },
   });
   const row = ensureRecord(response.data, "hospital donor responses");
   return {
@@ -78,6 +78,10 @@ export async function listHospitalDonorResponses() {
       (v, i) => parse(v, `hospital donor responses.items[${i}]`),
     ),
     total: ensureNumber(row.total, "hospital donor responses.total"),
+    totalPages: ensureNumber(
+      row.total_pages,
+      "hospital donor responses.total_pages",
+    ),
   };
 }
 export async function decideHospitalDonorResponse(
@@ -94,21 +98,62 @@ export interface PotentialDonor {
   donor_user_id: string;
   donor: string;
   blood_type: string;
-  distance_km: number | null;
+  distance_km: number;
   approximate_location: string;
   response_status: string | null;
   eligibility_status: string;
+  availability: string;
+  priority: string;
+  priority_score: number;
+  compatibility: string;
+  explanation: string[];
+  screening_flags: string[];
+  deadline_hours: number | null;
+}
+export interface PotentialDonorPage {
+  items: PotentialDonor[];
+  total: number;
+  page: number;
+  total_pages: number;
+  radius_km: number;
+  outreach_target: number;
+  suggested_radius_km: number | null;
+  policy_approved: boolean;
+  expansion: { radius_km: number; new_candidates: number }[];
+  notice: string;
+  evaluated_at: string;
 }
 export async function listPotentialDonors(
   requestId: string,
-): Promise<PotentialDonor[]> {
-  const response = await apiClient.get("/api/v1/donor-matches/potential", {
-    params: { request_id: requestId },
-  });
-  return response.data.items;
+  radius = 10,
+  status = "all",
+  bloodType = "",
+  page = 1,
+): Promise<PotentialDonorPage> {
+  const response = await apiClient.get<PotentialDonorPage>(
+    "/api/v1/donor-matches/potential",
+    {
+      params: {
+        request_id: requestId,
+        radius_km: radius,
+        status,
+        blood_type: bloodType || undefined,
+        page,
+      },
+    },
+  );
+  return response.data;
 }
-export async function inviteDonor(requestId: string, donorId: string) {
-  await apiClient.post(`/api/v1/donor-matches/${requestId}/invite/${donorId}`);
+export async function inviteDonor(
+  requestId: string,
+  donorId: string,
+  radius = 10,
+) {
+  await apiClient.post(
+    `/api/v1/donor-matches/${requestId}/invite/${donorId}`,
+    null,
+    { params: { radius_km: radius } },
+  );
 }
 export async function recordVerifiedBloodType(
   responseId: string,

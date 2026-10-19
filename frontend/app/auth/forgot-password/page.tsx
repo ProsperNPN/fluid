@@ -15,7 +15,6 @@ export default function ForgotPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -23,13 +22,11 @@ export default function ForgotPasswordPage() {
 
     setError(null);
     setSuccessMessage(null);
-    setResetToken(null);
     setIsSubmitting(true);
 
     try {
       const response = await requestPasswordReset({ email });
       setSuccessMessage(response.message);
-      setResetToken(response.reset_token);
       toast.success(response.message);
     } catch (err) {
       const status = getApiStatusCode(err);
@@ -62,16 +59,10 @@ export default function ForgotPasswordPage() {
       <div className="mx-auto max-w-md">
         <Card className="p-6">
           <h1 className="text-2xl font-bold text-slate-950">Forgot password</h1>
-          <p className="mt-1 text-sm text-slate-600">Enter your email and we will issue a password reset token.</p>
+          <p className="mt-1 text-sm text-slate-600">Enter your email to receive password reset instructions.</p>
 
           {successMessage ? <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</div> : null}
-          {resetToken ? (
-            <div className="mt-3 rounded-lg border border-fluid-200 bg-fluid-50 px-3 py-2 text-sm text-fluid-800">
-              <p className="font-medium">Reset token (development):</p>
-              <p className="mt-1 break-all text-xs">{resetToken}</p>
-              <p className="mt-2 text-xs text-fluid-700">Use this token on the reset password page.</p>
-            </div>
-          ) : null}
+
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <Input
@@ -91,7 +82,7 @@ export default function ForgotPasswordPage() {
               {isSubmitting ? (
                 <span className="inline-flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending reset token...
+                  Sending instructions...
                 </span>
               ) : (
                 'Send reset instructions'

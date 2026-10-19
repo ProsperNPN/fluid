@@ -21,9 +21,14 @@ class InventoryCreate(BaseModel):
 class InventoryAdjust(BaseModel):
     action: Literal["add", "remove", "reserve", "release", "use", "expire", "donation_intake"]
     units: int = Field(ge=1, le=10000)
+    request_id: str | None = None
+    clinical_authorization: bool = False
+    compatibility_verified: bool = False
     reason: str | None = Field(default=None, max_length=500)
 
 class InventoryRead(BaseModel):
+    physical_units: int = 0
+    quarantined_units: int = 0
     id: str
     blood_type: BloodType
     component: str

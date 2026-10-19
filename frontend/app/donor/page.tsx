@@ -1,4 +1,5 @@
 "use client";
+import { NotificationCenter } from "@/components/portal/notification-center";
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import {
@@ -16,7 +17,10 @@ import {
   getDonorProfile,
   updateDonorAvailability,
 } from "@/services/profile-service";
-import { listCompatibleRequests } from "@/services/compatible-requests-service";
+import {
+  listCompatibleRequests,
+  listDonorInvitations,
+} from "@/services/compatible-requests-service";
 import { listAppointments } from "@/services/appointments-service";
 import { getWorkspaceOverview } from "@/services/workspace-service";
 import { getApiErrorMessage } from "@/lib/api";
@@ -29,14 +33,19 @@ import {
 
 export default function DonorOverview() {
   const loader = useCallback(async () => {
-    const [profile, requests, appointments, stats] = await Promise.all([
-      getDonorProfile(),
-      listCompatibleRequests({ pageSize: 3 }),
-      listAppointments({ scope: "donor", page: 1, pageSize: 10 }),
-      getWorkspaceOverview(),
-    ]);
+    const [profile, requests, appointments, stats, invitations] =
+      await Promise.all([
+        getDonorProfile(),
+        listCompatibleRequests({ pageSize: 3 }),
+        listAppointments({ scope: "donor", page: 1, pageSize: 10 }),
+        getWorkspaceOverview(),
+        listDonorInvitations(),
+      ]);
     return {
       profile,
+      invitations: invitations.items.filter(
+        (i) => i.responseStatus === "invited",
+      ).length,
       requests: requests.items,
       appointments: appointments.items,
       stats,
@@ -70,6 +79,24 @@ export default function DonorOverview() {
   }
   return (
     <div className="portal-stack">
+      <NotificationCenter preview />
+      {!profile.matchingOptIn && (
+        <div className="portal-policy-note">
+          <ShieldCheck size={18} />
+          <span>
+            Location-based matching is off.{" "}
+            <Link href="/donor/availability">
+              Review matching consent and availability
+            </Link>{" "}
+            to receive hospital invitations.
+          </span>
+        </div>
+      )}
+      {query.data.invitations > 0 && (
+        <Link className="portal-policy-note" href="/donor/requests">
+          You have hospital invitations to review. Open invitations
+        </Link>
+      )}
       {query.error && (
         <div role="alert" className="portal-error">
           {query.error}

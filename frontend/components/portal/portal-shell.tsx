@@ -20,6 +20,7 @@ import {
   LogOut,
   Mail,
   Menu,
+  MapPin,
   PackageSearch,
   Settings,
   ShieldCheck,
@@ -35,6 +36,7 @@ import {
   resolveDashboardRole,
   getDefaultAuthenticatedRoute,
 } from "@/hooks/use-auth";
+import { useLiveNotifications } from "@/hooks/use-live-notifications";
 import { usePortalQuery } from "@/hooks/use-portal-query";
 import { getHospitalProfile } from "@/services/profile-service";
 import { listNotifications } from "@/services/notifications-service";
@@ -48,6 +50,7 @@ const donorNav = [
   ["/history", "My Donations", History],
   ["/appointments", "Appointments", CalendarDays],
   ["/availability", "Availability", SlidersHorizontal],
+  ["/location", "Location & Nearby", MapPin],
   ["/messages", "Messages", Mail],
   ["/profile", "Profile & Settings", Settings],
   ["/resources", "Resources", BookOpen],
@@ -56,8 +59,10 @@ const hospitalNav = [
   ["", "Overview", LayoutDashboard],
   ["/requests", "Blood Requests", Droplets],
   ["/donors", "Donor Matches", Users],
+  ["/emergencies", "Emergency Coordination", Bell],
   ["/appointments", "Appointments", CalendarDays],
   ["/inventory", "Blood Inventory", PackageSearch],
+  ["/location", "Facility Location", MapPin],
   ["/analytics", "Analytics", BarChart3],
   ["/messages", "Messages", Mail],
   ["/staff", "Staff Management", Users],
@@ -80,6 +85,7 @@ export function PortalShell({
   const drawer = useRef<HTMLDialogElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const allowed = !!auth.user && resolveDashboardRole(auth.user) === role;
+  const liveStatus = useLiveNotifications(allowed);
   const loader = useCallback(async () => {
     if (!allowed) return null;
     const profile = role === "hospital" ? await getHospitalProfile() : null;
@@ -286,12 +292,20 @@ export function PortalShell({
             )}
           </div>
           <div className="portal-header__right">
+            <span
+              className="hidden sm:inline text-xs text-slate-500"
+              role="status"
+            >
+              {liveStatus}
+            </span>
             <Link
               href={`/${role}/notifications`}
               className="portal-bell"
               aria-label="Notifications"
+              title={`Notifications ? ${liveStatus}`}
             >
               <Bell size={19} />
+              <span className="sr-only">{liveStatus}</span>
               {!!query.data?.notifications && (
                 <b>
                   {query.data.notifications > 9

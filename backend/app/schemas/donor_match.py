@@ -26,6 +26,10 @@ class DonorMatchPageRead(BaseModel):
     total_pages: int
 
 class CompatibleRequestRead(BaseModel):
+    hospital_latitude: float | None = None
+    hospital_longitude: float | None = None
+    can_accept: bool = True
+    screening_required: bool = True
     component: str = "whole_blood"
     urgency: str = "routine"
     required_by: datetime | None = None

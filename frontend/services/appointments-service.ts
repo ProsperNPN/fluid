@@ -1,5 +1,8 @@
 import { apiClient } from "@/lib/api";
 import {
+  ensureBoolean,
+  ensureNullableNumber,
+  ensureNullableString,
   ensureArray,
   ensureEnum,
   ensureNumber,
@@ -20,6 +23,35 @@ function parseAppointment(data: unknown, context: string): Appointment {
   const record = ensureRecord(data, context);
 
   return {
+    hospitalLatitude: ensureNullableNumber(
+      record.hospital_latitude,
+      `${context}.hospital_latitude`,
+    ),
+    hospitalLongitude: ensureNullableNumber(
+      record.hospital_longitude,
+      `${context}.hospital_longitude`,
+    ),
+    component: ensureString(record.component, `${context}.component`),
+    endsAt: ensureNullableString(record.ends_at, `${context}.ends_at`),
+    isScheduled: ensureBoolean(record.is_scheduled, `${context}.is_scheduled`),
+    timezone: ensureString(record.timezone, `${context}.timezone`),
+    proposedBy: ensureNullableString(
+      record.proposed_by,
+      `${context}.proposed_by`,
+    ),
+    preparationInstructions: ensureString(
+      record.preparation_instructions,
+      `${context}.preparation_instructions`,
+    ),
+    cancellationReason: ensureNullableString(
+      record.cancellation_reason,
+      `${context}.cancellation_reason`,
+    ),
+    checkedInAt: ensureNullableString(
+      record.checked_in_at,
+      `${context}.checked_in_at`,
+    ),
+    version: ensureNumber(record.version, `${context}.version`),
     id: ensureString(record.id, `${context}.id`),
     bloodRequestId: ensureString(
       record.blood_request_id,
@@ -38,7 +70,15 @@ function parseAppointment(data: unknown, context: string): Appointment {
     scheduledAt: ensureString(record.scheduled_at, `${context}.scheduled_at`),
     status: ensureEnum(
       record.status,
-      ["pending", "confirmed", "completed", "cancelled", "missed"] as const,
+      [
+        "pending",
+        "confirmed",
+        "checked_in",
+        "completed",
+        "cancelled",
+        "no_show",
+        "missed",
+      ] as const,
       `${context}.status`,
     ),
     location: ensureString(record.location, `${context}.location`),
@@ -61,10 +101,16 @@ function parseAppointment(data: unknown, context: string): Appointment {
 export async function scheduleAppointment(
   id: string,
   scheduledAt: string,
+  version?: number,
+  preparationInstructions?: string,
 ): Promise<Appointment> {
   const response = await apiClient.patch<unknown>(
     `/api/v1/appointments/${id}/schedule`,
-    { scheduled_at: scheduledAt },
+    {
+      scheduled_at: scheduledAt,
+      expected_version: version,
+      preparation_instructions: preparationInstructions,
+    },
   );
   return parseAppointment(response.data, "appointments.schedule response");
 }
@@ -78,9 +124,15 @@ export async function cancelAppointment(id: string): Promise<Appointment> {
 
 export async function updateAppointmentStatus(
   id: string,
-  status: "confirmed" | "completed" | "cancelled" | "missed",
+  status: Appointment["status"],
   internalNotes?: string,
   screeningConfirmed = false,
+  extra: {
+    expected_version?: number;
+    procedure_confirmed?: boolean;
+    actual_units?: number;
+    reason?: string;
+  } = {},
 ): Promise<Appointment> {
   const response = await apiClient.patch<unknown>(
     `/api/v1/appointments/${id}/status`,
@@ -88,6 +140,7 @@ export async function updateAppointmentStatus(
       status,
       internal_notes: internalNotes,
       screening_confirmed: screeningConfirmed,
+      ...extra,
     },
   );
   return parseAppointment(response.data, "appointments.status response");
@@ -98,9 +151,17 @@ export async function listAppointments(params: {
   page: number;
   pageSize: number;
   status?: string;
+  fromDate?: string;
+  toDate?: string;
+  search?: string;
+  requestId?: string;
 }): Promise<AppointmentsPage> {
   const response = await apiClient.get<unknown>("/api/v1/appointments", {
     params: {
+      from_date: params.fromDate,
+      to_date: params.toDate,
+      search: params.search,
+      request_id: params.requestId,
       scope: params.scope,
       status: params.status,
       page: params.page,
@@ -139,4 +200,113 @@ export async function downloadDonationConfirmation(id: string) {
   anchor.download = `fluid-donation-${id}.txt`;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+export interface OpeningHours {
+  weekday: number;
+  start: string;
+  end: string;
+}
+export interface AppointmentPreferences {
+  timezone: string;
+  hours: OpeningHours[];
+}
+export interface AppointmentPolicy extends AppointmentPreferences {
+  enabled: boolean;
+  slot_minutes: number;
+  capacity: number;
+  reminder_hours: number[];
+  preparation_instructions: string;
+}
+export interface AvailableSlot {
+  scheduled_at: string;
+  ends_at: string;
+  available_capacity: number;
+  preferred: boolean;
+}
+export async function getAppointmentPolicy() {
+  return (await apiClient.get<AppointmentPolicy>("/api/v1/appointments/policy"))
+    .data;
+}
+export async function saveAppointmentPolicy(value: AppointmentPolicy) {
+  return (
+    await apiClient.put<AppointmentPolicy>("/api/v1/appointments/policy", value)
+  ).data;
+}
+export async function getAppointmentPreferences() {
+  return (
+    await apiClient.get<AppointmentPreferences>(
+      "/api/v1/appointments/preferences",
+    )
+  ).data;
+}
+export async function saveAppointmentPreferences(
+  value: AppointmentPreferences,
+) {
+  return (
+    await apiClient.put<AppointmentPreferences>(
+      "/api/v1/appointments/preferences",
+      value,
+    )
+  ).data;
+}
+export async function getAppointmentSlots(params: {
+  appointmentId?: string;
+  requestId?: string;
+  donorUserId?: string;
+  startDate: string;
+}) {
+  return (
+    await apiClient.get<{
+      items: AvailableSlot[];
+      timezone: string;
+      notice: string;
+    }>(
+      params.appointmentId
+        ? `/api/v1/appointments/${params.appointmentId}/slots`
+        : "/api/v1/appointments/available-slots",
+      {
+        params: {
+          start_date: params.startDate,
+          days: 7,
+          request_id: params.requestId,
+          donor_user_id: params.donorUserId,
+        },
+      },
+    )
+  ).data;
+}
+export async function createAppointment(input: {
+  blood_request_id: string;
+  donor_user_id: string;
+  scheduled_at: string;
+  preparation_instructions?: string;
+}) {
+  return parseAppointment(
+    (await apiClient.post("/api/v1/appointments", input)).data,
+    "appointments.create",
+  );
+}
+export async function getAppointmentHistory(id: string) {
+  return (
+    await apiClient.get<{
+      items: {
+        action: string;
+        version: number;
+        created_at: string;
+        details: { status: string; scheduled_at?: string; reason?: string };
+      }[];
+    }>(`/api/v1/appointments/${id}/history`)
+  ).data;
+}
+export async function downloadAppointmentCalendar(id: string) {
+  const response = await apiClient.get(`/api/v1/appointments/${id}/calendar`, {
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(response.data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `fluid-appointment-${id}.ics`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

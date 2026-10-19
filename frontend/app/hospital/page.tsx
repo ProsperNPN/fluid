@@ -55,6 +55,7 @@ export default function HospitalOverview() {
   const { profile, stats, requests, responses, inventory } = q.data;
   return (
     <div className="portal-stack">
+      <Link className="portal-button portal-button--secondary" href="/hospital/emergencies">Open live emergency coordination ?</Link>
       {q.error && (
         <div className="portal-error" role="alert">
           {q.error}

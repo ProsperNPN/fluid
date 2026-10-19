@@ -44,3 +44,6 @@ class BloodRequest(Base):
     )
 
     created_by = relationship("User", back_populates="blood_requests")
+
+    alert_radius_km: Mapped[int] = mapped_column(Integer, default=10, server_default="10")
+    alert_escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

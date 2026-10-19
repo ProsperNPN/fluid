@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Crosshair, FileCheck2, Save, Upload } from "lucide-react";
+import { Building2, FileCheck2, Save, Upload } from "lucide-react";
+import { LocationSelector } from "@/components/location/location-selector";
+import { saveLocation } from "@/services/location-service";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -35,7 +37,6 @@ export default function HospitalProfilePage() {
     );
   const [loading, setLoading] = useState(true),
     [saving, setSaving] = useState(false),
-    [locating, setLocating] = useState(false),
     [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<Record<string, File | null>>({});
@@ -62,53 +63,6 @@ export default function HospitalProfilePage() {
     value: HospitalProfile[K],
   ) =>
     setProfile((current) => (current ? { ...current, [key]: value } : current));
-  const locate = () => {
-    if (!navigator.geolocation) {
-      toast.error(
-        "Location services are unavailable. You can continue with manual entry.",
-      );
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        change("latitude", coords.latitude);
-        change("longitude", coords.longitude);
-        try {
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${coords.latitude}&lon=${coords.longitude}`,
-            { headers: { Accept: "application/json" } },
-          );
-          if (!response.ok) throw new Error();
-          const result = await response.json();
-          const address = result.address || {};
-          change("address", result.display_name || "");
-          change("city", address.city || address.town || address.village || "");
-          change("region", address.state || address.region || null);
-          change("country", address.country || "");
-          change("postalCode", address.postcode || null);
-          toast.success(
-            "Location found. Review and edit the address before saving.",
-          );
-        } catch {
-          toast.warning(
-            "Coordinates were added, but the address could not be retrieved. Please enter it manually.",
-          );
-        } finally {
-          setLocating(false);
-        }
-      },
-      (error) => {
-        setLocating(false);
-        toast.error(
-          error.code === error.PERMISSION_DENIED
-            ? "Location permission was denied. You can continue with manual entry."
-            : "Your location could not be determined. Please enter it manually.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
-    );
-  };
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || saving) return;
@@ -262,85 +216,26 @@ export default function HospitalProfilePage() {
             </label>
           </div>
         </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap justify-between gap-3">
-            <div>
-              <h2 className="font-semibold">Hospital location</h2>
-              <p className="text-sm text-slate-500">
-                Location permission is optional; manual entry always remains
-                available.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={locating}
-              onClick={locate}
-            >
-              <Crosshair className="mr-2 h-4 w-4" />
-              {locating ? "Finding location..." : "Use My Current Location"}
-            </Button>
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium sm:col-span-2">
-              Street address
-              <input
-                className={input}
-                value={profile.address}
-                onChange={(e) => change("address", e.target.value)}
-              />
-            </label>
-            {(
-              [
-                ["city", "City"],
-                ["region", "Region / state"],
-                ["country", "Country"],
-                ["postalCode", "Postal code"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key} className="text-sm font-medium">
-                {label}
-                <input
-                  className={input}
-                  value={(profile[key] as string | null) ?? ""}
-                  onChange={(e) =>
-                    change(key, (e.target.value || null) as never)
+        <LocationSelector
+          value={profile}
+          label="Confirm your facility location"
+          onConfirm={async (selection) => {
+            await saveLocation(selection);
+            setProfile((current) =>
+              current
+                ? {
+                    ...current,
+                    latitude: selection.latitude,
+                    longitude: selection.longitude,
+                    address: selection.address,
+                    city: selection.city,
+                    region: selection.region,
+                    country: selection.country,
                   }
-                />
-              </label>
-            ))}
-            <label className="text-sm font-medium">
-              Latitude
-              <input
-                type="number"
-                step="any"
-                className={input}
-                value={profile.latitude ?? ""}
-                onChange={(e) =>
-                  change(
-                    "latitude",
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-              />
-            </label>
-            <label className="text-sm font-medium">
-              Longitude
-              <input
-                type="number"
-                step="any"
-                className={input}
-                value={profile.longitude ?? ""}
-                onChange={(e) =>
-                  change(
-                    "longitude",
-                    e.target.value ? Number(e.target.value) : null,
-                  )
-                }
-              />
-            </label>
-          </div>
-        </section>
+                : current,
+            );
+          }}
+        />
         <div className="flex justify-end">
           <Button disabled={saving}>
             <Save className="mr-2 h-4 w-4" />
