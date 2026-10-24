@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import InvalidTokenError, decode_token
-from app.models import HospitalMembership, HospitalProfile, User
+from app.models import HospitalMembership, HospitalProfile, User, RefreshToken
+from datetime import datetime, timezone
 from app.repositories import UserRepository
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -24,6 +25,12 @@ async def get_current_user(
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
+
+    session = (await db.execute(select(RefreshToken).where(
+        RefreshToken.jti == payload.sid, RefreshToken.user_id == payload.sub,
+        RefreshToken.revoked_at.is_(None), RefreshToken.expires_at > datetime.now(timezone.utc)))).scalar_one_or_none() if payload.sid else None
+    if session is None:
+        raise HTTPException(status_code=401, detail="Session revoked or expired", headers={"WWW-Authenticate": "Bearer"})
 
     user_repo = UserRepository(db)
     user = await user_repo.get_by_id(payload.sub)

@@ -6,6 +6,7 @@ import {
   ensureRecord,
   ensureString,
 } from '@/lib/api/contracts';
+import { getSessionScope } from "@/lib/api/token-storage";
 import type {
   AuthUser,
   ForgotPasswordPayload,
@@ -74,13 +75,14 @@ export async function getCurrentUser(): Promise<AuthUser> {
 }
 
 export async function logoutUser(): Promise<void> {
+  const sessionScope = getSessionScope();
   const refreshToken = getRefreshToken();
   const payload: LogoutPayload | undefined = refreshToken ? { refresh_token: refreshToken } : undefined;
 
   try {
     await apiClient.post('/api/v1/auth/logout', payload);
   } finally {
-    clearTokens();
+    if (getSessionScope() === sessionScope) clearTokens();
   }
 }
 

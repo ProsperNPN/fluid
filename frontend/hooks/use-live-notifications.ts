@@ -1,9 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { getSessionScope, subscribeSession } from '@/lib/api/token-storage';
 import { apiClient, getAccessToken } from "@/lib/api";
 
 /** Authenticated SSE; database state polling remains available behind proxies. */
 export function useLiveNotifications(enabled: boolean) {
+  const scope = useSyncExternalStore(subscribeSession, getSessionScope, () => '');
   const [status, setStatus] = useState("Connecting");
   useEffect(() => {
     if (!enabled) return;
@@ -13,6 +15,7 @@ export function useLiveNotifications(enabled: boolean) {
     let controller: AbortController | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const update = (next: string) => {
+      if (getSessionScope() !== scope) return;
       if (next !== revision) {
         revision = next;
         window.dispatchEvent(new Event("fluid:live-update"));
@@ -123,6 +126,6 @@ export function useLiveNotifications(enabled: boolean) {
       window.removeEventListener("fluid:session-ended", ended);
       window.removeEventListener("storage", storage);
     };
-  }, [enabled]);
+  }, [enabled, scope]);
   return status;
 }

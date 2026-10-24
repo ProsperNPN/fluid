@@ -11,6 +11,9 @@ class NotificationRead(BaseModel):
     is_read: bool
     related_path: str | None
     payload: dict | None = None
+    sync_emitted_at: datetime | None = None
+    received_at: datetime | None = None
+    read_at: datetime | None = None
     created_at: datetime
     model_config = {"from_attributes": True}
 

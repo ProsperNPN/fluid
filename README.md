@@ -51,3 +51,5 @@ npm.cmd run build
 ```
 
 See [publishing](docs/REQUEST_PUBLISHING.md), [matching](docs/INTELLIGENT_MATCHING.md), [alerts](docs/EMERGENCY_ALERTS.md), [appointments](docs/APPOINTMENT_SCHEDULING.md), [inventory](docs/SMART_INVENTORY.md) and [location](docs/LOCATION_SYSTEM.md) for module configuration. Historical validation claims in those documents must be distinguished from the current audit run.
+
+Private notification flow, diagnostics and current repair evidence: [Notification isolation](docs/NOTIFICATION_ISOLATION.md).

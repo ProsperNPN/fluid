@@ -18,6 +18,7 @@ export type HospitalRequestStatus =
   | "cancelled"
   | "expired";
 export interface HospitalRequest {
+  matchingNotice: string | null;
   id: string;
   hospitalName: string;
   hospitalVerified: boolean;
@@ -64,6 +65,7 @@ export interface HospitalRequestInput {
 function parse(data: unknown, context: string): HospitalRequest {
   const row = ensureRecord(data, context);
   return {
+    matchingNotice: typeof row.matching_notice === "string" ? row.matching_notice : null,
     id: ensureString(row.id, `${context}.id`),
     hospitalName: ensureString(row.hospital_name, `${context}.hospital_name`),
     hospitalVerified: ensureBoolean(

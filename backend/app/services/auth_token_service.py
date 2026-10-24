@@ -21,8 +21,8 @@ class AuthTokenService:
         return sha256(token.encode("utf-8")).hexdigest()
 
     async def issue_token_pair(self, subject: str) -> TokenPair:
-        access_token, access_expires_at = create_access_token(subject)
         refresh_token, refresh_expires_at, jti = create_refresh_token(subject)
+        access_token, access_expires_at = create_access_token(subject, {"sid": jti})
 
         await self.refresh_tokens.create(
             user_id=subject,

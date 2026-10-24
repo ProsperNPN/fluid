@@ -3,8 +3,9 @@ import asyncio
 import hashlib
 import json
 import time
-from sqlalchemy import select
-from app.models import Notification, User, Appointment, BloodRequest, HospitalMembership, InventoryUnit, InventoryStockPolicy, InventoryComponentPolicy
+from sqlalchemy import select, update
+from datetime import datetime, timezone
+from app.models import Notification, User, Appointment, BloodRequest, HospitalMembership, InventoryUnit, InventoryStockPolicy, InventoryComponentPolicy, RefreshToken
 
 
 async def notification_state(db, user_id):
@@ -21,7 +22,7 @@ async def notification_state(db, user_id):
     return {"revision": revision, "unread_count": sum(not row.is_read for row in rows)}
 
 
-async def event_stream(factory, user_id, request, lifetime=90):
+async def event_stream(factory, user_id, request, lifetime=90, session_id=None):
     previous = None
     started = time.monotonic()
     while time.monotonic() - started < lifetime:
@@ -31,7 +32,18 @@ async def event_stream(factory, user_id, request, lifetime=90):
             user = await db.get(User, user_id)
             if not user or not user.is_active:
                 return
+            if session_id is not None:
+                active = (await db.execute(select(RefreshToken.id).where(
+                    RefreshToken.jti == session_id, RefreshToken.user_id == user_id,
+                    RefreshToken.revoked_at.is_(None), RefreshToken.expires_at > datetime.now(timezone.utc)))).scalar_one_or_none()
+                if not active: return
             state = await notification_state(db, user_id)
+            if state["revision"] != previous:
+                # Evidence that a sync snapshot is about to be emitted, not proof
+                # that the client fetched or displayed individual notifications.
+                await db.execute(update(Notification).where(Notification.user_id == user_id,
+                    Notification.sync_emitted_at.is_(None)).values(sync_emitted_at=datetime.now(timezone.utc), updated_at=Notification.updated_at))
+                await db.commit()
         if state["revision"] != previous:
             previous = state["revision"]
             yield f'id: {previous}\nevent: sync\ndata: {json.dumps(state)}\n\n'

@@ -117,8 +117,8 @@ async def changed(db, appointment, request, actor_id, action, details=None):
         message=f"{request.hospital_name}: {appointment.status.replace('_', ' ')}. Open your appointment for details.",
         level="info", related_path="/donor/appointments")
     members = (await db.execute(select(HospitalMembership.user_id).where(HospitalMembership.hospital_profile_id == request.hospital_profile_id,
-        HospitalMembership.is_active.is_(True)))).scalars().all()
-    for uid in set(members) | {appointment.hospital_user_id}:
+        HospitalMembership.is_active.is_(True), HospitalMembership.role.in_(["hospital_admin", "blood_bank_manager", "hospital_staff"])))).scalars().all()
+    for uid in set(members):
         await notify(db, uid, type="appointment", title=f"Appointment {action.replace('_', ' ')}",
             message=f"Appointment status: {appointment.status.replace('_', ' ')}.", level="info", related_path="/hospital/appointments")
 

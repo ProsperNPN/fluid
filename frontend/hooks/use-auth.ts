@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { clearTokens, getApiErrorMessage, hasTokens } from '@/lib/api';
 import { getCurrentUser, logoutUser } from '@/services/auth-service';
+import { getSessionScope, subscribeSession } from '@/lib/api/token-storage';
 import type { AuthUser } from '@/types/auth';
 
 export type DashboardRole = 'donor' | 'hospital' | 'admin';
@@ -23,6 +24,8 @@ export function getDefaultAuthenticatedRoute(user: AuthUser): string {
 }
 
 export function useAuthState() {
+  const scope = useSyncExternalStore(subscribeSession, getSessionScope, () => '');
+  const [userScope, setUserScope] = useState(scope);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,22 +37,26 @@ export function useAuthState() {
       return null;
     }
 
+    const startedScope = getSessionScope();
     setIsLoading(true);
     setError(null);
 
     try {
       const currentUser = await getCurrentUser();
+      if (startedScope !== getSessionScope()) return null;
+      setUserScope(startedScope);
       setUser(currentUser);
       return currentUser;
     } catch (err) {
+      if (startedScope !== getSessionScope()) return null;
       clearTokens();
       setUser(null);
       setError(getApiErrorMessage(err, 'Unable to load your account session.'));
       return null;
     } finally {
-      setIsLoading(false);
+      if (startedScope === getSessionScope()) setIsLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void refreshUser();
@@ -62,14 +69,14 @@ export function useAuthState() {
 
   return useMemo(
     () => ({
-      user,
-      isLoading,
+      user: userScope === scope ? user : null,
+      isLoading: userScope !== scope && hasTokens() || isLoading,
       error,
-      isAuthenticated: Boolean(user),
+      isAuthenticated: userScope === scope && Boolean(user),
       refreshUser,
       logout,
     }),
-    [error, isLoading, logout, refreshUser, user],
+    [error, isLoading, logout, refreshUser, user, userScope, scope],
   );
 }
 

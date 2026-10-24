@@ -1,5 +1,7 @@
 # FLUID system audit progress
 
+Subsequent matching/notification/session repairs are recorded in [Notification isolation](NOTIFICATION_ISOLATION.md). In particular, access-token revocation and browser testing limitations below describe the earlier audit, not the current repaired session behavior.
+
 Audit dates: 2026-10-18 to 2026-10-19. This is a resumable audit record, not production certification.
 
 Source inventory: [pages, API declarations, models, services, migrations and configuration keys](SYSTEM_ROUTE_INVENTORY.md).

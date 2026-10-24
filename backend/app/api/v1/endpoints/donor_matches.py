@@ -31,6 +31,26 @@ def _compatible_read(request, distance, status, can_accept=True):
         hospital_latitude=request.latitude, hospital_longitude=request.longitude, can_accept=can_accept)
 
 
+@router.get("/readiness")
+async def matching_readiness(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if user.role != "donor": raise HTTPException(403, "Donor access only")
+    from app.core.config import settings
+    from app.services.blood_matching import valid_coordinates, is_referral_candidate
+    profile = (await db.execute(select(DonorProfile).where(DonorProfile.user_id == user.id))).scalar_one_or_none()
+    reasons = []
+    if not settings.DONATION_POLICY_APPROVED: reasons.append("Matching and request alerts are paused pending clinical policy approval.")
+    if profile is None: reasons.append("Complete your donor profile.")
+    else:
+        if not profile.is_available: reasons.append("Your availability is switched off.")
+        if not profile.matching_opt_in: reasons.append("You have not opted in to location-based matching.")
+        if not profile.blood_type_known: reasons.append("Your blood type is not yet provided.")
+        if not valid_coordinates(profile.latitude, profile.longitude): reasons.append("Save a valid donation location; physical proximity alone does not update your profile.")
+        if not profile.notify_urgent_requests: reasons.append("Urgent request notifications are switched off.")
+        if settings.DONATION_POLICY_APPROVED and not is_referral_candidate(profile) and profile.matching_opt_in and profile.blood_type_known:
+            reasons.append("Your saved screening information is outside the configured referral policy; review with the hospital.")
+    return {"reasons": reasons, "notice": "Alerts also require component compatibility and both the hospital search radius and your preferred radius. Matching is not medical clearance."}
+
+
 @router.get("/invitations", response_model=CompatibleRequestPageRead)
 async def donor_invitations(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50), db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if user.role != "donor": raise HTTPException(403, "Donor access only")

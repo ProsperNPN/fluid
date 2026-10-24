@@ -59,6 +59,8 @@ export async function listNotifications(
     params: { unread_only: unreadOnly, page, page_size: 50 },
   });
   const record = ensureRecord(response.data, "notifications.list response");
+  const deliveredIds = ensureArray(record.items, "notifications.items").map(item => ensureString(ensureRecord(item, "notification").id, "notification.id"));
+  if (deliveredIds.length) void apiClient.post("/api/v1/notifications/received", { ids: deliveredIds }).catch(() => undefined);
   return {
     totalPages: ensureNumber(record.total_pages, "notifications.total_pages"),
     items: ensureArray(record.items, "notifications.items").map((item, index) =>

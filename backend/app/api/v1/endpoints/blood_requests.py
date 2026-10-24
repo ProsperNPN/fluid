@@ -56,22 +56,72 @@ async def _read(db: AsyncSession, item: BloodRequest) -> BloodRequestRead:
     responses = int((await db.execute(select(func.count(DonorResponse.id)).where(DonorResponse.blood_request_id == item.id))).scalar_one() or 0)
     appointments = int((await db.execute(select(func.count(Appointment.id)).where(Appointment.blood_request_id == item.id))).scalar_one() or 0)
     data = {column.name: getattr(item, column.name) for column in item.__table__.columns}
-    return BloodRequestRead(**data, donor_response_count=responses, appointment_count=appointments)
+    from app.core.config import settings
+    return BloodRequestRead(**data, donor_response_count=responses, appointment_count=appointments,
+        matching_notice=None if settings.DONATION_POLICY_APPROVED else "Request saved. Donor matching and alerts are disabled pending clinical policy approval.")
 
 async def _notify_compatible_donors(db: AsyncSession, item: BloodRequest) -> None:
+    from app.services.matching_diagnostics import record_execution
+    from app.models import RequestNotificationReceipt
     if item.urgency != "routine":
         from app.services.emergency_alerts import queue_alerts
         count = await queue_alerts(db, item)
-        db.add(AuditLog(hospital_profile_id=item.hospital_profile_id, actor_user_id=item.created_by_user_id, action="matching.evaluated", entity_type="blood_request", entity_id=item.id, details={"radius_km": item.alert_radius_km or 10, "alerts": count}))
+        await record_execution(db, item, count)
         return
     from app.services.intelligent_matching import evaluate_candidates
-    result = await evaluate_candidates(db, item, radius_km=10, page_size=100)
-    for candidate in result["items"]:
-        profile = (await db.execute(select(DonorProfile).where(DonorProfile.user_id == candidate["donor_user_id"]))).scalar_one()
-        if item.urgency != "routine" and not profile.notify_urgent_requests: continue
-        db.add(Notification(user_id=profile.user_id, type="blood_request", title=f"{item.urgency.title()} nearby request", message=f"{item.hospital_name} needs {item.blood_type}. Clinical screening required.", level="warning" if item.urgency != "routine" else "info", related_path=f"/donor/requests?request={item.id}"))
-    db.add(AuditLog(hospital_profile_id=item.hospital_profile_id, actor_user_id=item.created_by_user_id, action="matching.evaluated", entity_type="blood_request", entity_id=item.id,
-        details={"radius_km": 10, "candidate_count": result["total"], "policy_approved": result["policy_approved"]}))
+    page, count, candidates = 1, 0, []
+    # Do not silently stop after the first 100 recipients.
+    while True:
+        result = await evaluate_candidates(db, item, radius_km=10, page=page, page_size=100)
+        candidates.extend(result["items"])
+        if page >= result["total_pages"]: break
+        page += 1
+    for candidate in sorted(candidates, key=lambda row: row["donor_user_id"]):
+        uid = candidate["donor_user_id"]
+        profile = (await db.execute(select(DonorProfile).where(DonorProfile.user_id == uid)
+            .with_for_update().execution_options(populate_existing=True))).scalar_one()
+        if not match_request(profile, item)[0]: continue
+        existing = await db.scalar(select(RequestNotificationReceipt.id).where(
+            RequestNotificationReceipt.blood_request_id == item.id, RequestNotificationReceipt.user_id == uid))
+        if existing: continue
+        notification = Notification(user_id=uid, type="blood_request", title="Nearby blood request",
+            message=f"{item.hospital_name} published a potentially compatible request. Clinical screening required.",
+            level="info", related_path=f"/donor/requests?request={item.id}",
+            payload={"request_id": item.id, "status": item.status, "urgency": item.urgency,
+                "hospital": item.hospital_name, "location": item.location, "blood_type": item.blood_type,
+                "component": item.component, "units": item.units, "distance_km": candidate["distance_km"],
+                "deadline": item.required_by.isoformat() if item.required_by else None})
+        db.add(notification)
+        await db.flush()
+        db.add(RequestNotificationReceipt(blood_request_id=item.id, user_id=uid, notification_id=notification.id))
+        count += 1
+    await record_execution(db, item, count)
+
+
+@router.get("/{request_id}/notification-diagnostics")
+async def notification_diagnostics(request_id: str, db: AsyncSession = Depends(get_db), context: HospitalContext = Depends(require_hospital_operator)):
+    from app.core.config import settings
+    if settings.ENVIRONMENT != "development": raise HTTPException(404, "Not found")
+    if context.membership.role != "hospital_admin": raise HTTPException(403, "Hospital administrator required")
+    item = await db.get(BloodRequest, request_id)
+    if not item or item.hospital_profile_id != context.hospital.id: raise HTTPException(404, "Request not found")
+    from app.services.matching_diagnostics import matching_summary
+    from app.models import EmergencyAlert, RequestNotificationReceipt, AlertDelivery
+    summary = await matching_summary(db, item)
+    ids = select(EmergencyAlert.notification_id).where(EmergencyAlert.blood_request_id == item.id).union(
+        select(RequestNotificationReceipt.notification_id).where(RequestNotificationReceipt.blood_request_id == item.id))
+    cards = (await db.execute(select(Notification).where(Notification.id.in_(ids)))).scalars().all()
+    jobs = (await db.execute(select(AlertDelivery).join(EmergencyAlert, EmergencyAlert.id == AlertDelivery.alert_id)
+        .where(EmergencyAlert.blood_request_id == item.id))).scalars().all()
+    execution = (await db.execute(select(AuditLog).where(AuditLog.entity_id == item.id, AuditLog.action == "matching.evaluated")
+        .order_by(AuditLog.created_at.desc()).limit(1))).scalar_one_or_none()
+    return {"request_id": item.id, "current": summary, "last_execution": execution.details if execution else None,
+        "evidence": {"notifications_in_history": len(cards), "sync_snapshots_emitted": sum(n.sync_emitted_at is not None for n in cards),
+            "client_acknowledged": sum(n.received_at is not None for n in cards), "read": sum(n.is_read for n in cards),
+            "external_attempts": sum(j.attempts for j in jobs), "external_failures": sum(j.status in {"failed", "retry"} for j in jobs),
+            "external_delivered": sum(j.status == "delivered" for j in jobs)},
+        "notice": "Sync emission advertises a revision; only client acknowledgement confirms fetched records. Neither means read or externally delivered."}
+
 
 @router.get("", response_model=list[BloodRequestRead])
 async def list_blood_requests(mine: bool = Query(False), db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)) -> list[BloodRequestRead]:

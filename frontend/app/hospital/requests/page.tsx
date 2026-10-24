@@ -146,7 +146,8 @@ export default function RequestsPage() {
     return () => { alive = false; };
   }, [open, edit]);
   function fieldState(field: keyof HospitalRequestInput) {
-    return { id: `request-${field}`, "aria-invalid": !!errors[field], "aria-describedby": errors[field] ? `request-${field}-error` : undefined };
+    const labels: Partial<Record<keyof HospitalRequestInput, string>> = { bloodType: "Blood type", component: "Component", units: "Units needed", urgency: "Urgency", requiredBy: "Required by", expiresAt: "Request expires" };
+    return { id: `request-${field}`, "aria-label": labels[field], "aria-invalid": !!errors[field], "aria-describedby": errors[field] ? `request-${field}-error` : undefined };
   }
   function fieldError(field: keyof HospitalRequestInput) {
     return errors[field] ? <span id={`request-${field}-error`} className="text-sm text-red-700" role="alert">{errors[field]}</span> : null;
@@ -172,16 +173,17 @@ export default function RequestsPage() {
     submitting.current = true;
     setBusy(true);
     try {
+      let saved: HospitalRequest;
       if (edit) {
-        await updateHospitalRequest(edit, { ...form, status: "draft" });
-        if (publishing) await publishHospitalRequest(edit);
+        saved = await updateHospitalRequest(edit, { ...form, status: "draft" });
+        if (publishing) saved = await publishHospitalRequest(edit);
       }
       else
-        await createHospitalRequest({
+        saved = await createHospitalRequest({
           ...form,
           status: publishing ? "published" : "draft",
         });
-      const message = publishing ? "Blood request published successfully." : edit ? "Request updated." : "Draft saved.";
+      const message = publishing ? `Blood request published successfully. ${saved.matchingNotice || ""}` : edit ? "Request updated." : "Draft saved.";
       toast.success(message);
       setSuccess(message);
       setOpen(false);
@@ -208,8 +210,9 @@ export default function RequestsPage() {
     setActionError("");
     setBusy(true);
     try {
+      let matchingNotice: string | null = null;
       if (action.type === "publish")
-        await publishHospitalRequest(action.item.id);
+        matchingNotice = (await publishHospitalRequest(action.item.id)).matchingNotice;
       else if (action.type === "cancel")
         await cancelHospitalRequest(action.item.id);
       else
@@ -220,7 +223,7 @@ export default function RequestsPage() {
           reason,
           record_confirmed: confirmed,
         });
-      const message = action.type === "publish" ? "Blood request published successfully." : "Request updated and audited.";
+      const message = action.type === "publish" ? `Blood request published successfully. ${matchingNotice || ""}` : "Request updated and audited.";
       toast.success(message);
       setSuccess(message);
       if (action.type === "publish") { setTab("all"); setPage(1); setSearch(""); }

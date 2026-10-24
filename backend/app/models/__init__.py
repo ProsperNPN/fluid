@@ -7,7 +7,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.models.appointment import Appointment
 from app.models.donor_response import DonorResponse
-from app.models.notification import Notification
+from app.models.notification import Notification, RequestNotificationReceipt
 from app.models.hospital_membership import HospitalMembership
 from app.models.blood_inventory import BloodInventory
 from app.models.audit_log import AuditLog

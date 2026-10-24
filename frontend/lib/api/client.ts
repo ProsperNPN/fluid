@@ -1,8 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './token-storage';
+import { clearTokens, getAccessToken, getRefreshToken, getSessionScope, setTokens } from './token-storage';
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
+  _sessionScope?: string;
   _retry?: boolean;
   _retryCount?: number;
   skipAuth?: boolean;
@@ -99,6 +100,7 @@ async function refreshAccessToken(): Promise<string | null> {
       { headers: { Authorization: undefined } },
     );
 
+    if (getRefreshToken() !== refreshToken) return null;
     setTokens({
       accessToken: response.data.access_token,
       refreshToken: response.data.refresh_token,
@@ -106,13 +108,15 @@ async function refreshAccessToken(): Promise<string | null> {
 
     return response.data.access_token;
   } catch {
-    clearTokens();
+    if (getRefreshToken() === refreshToken) clearTokens();
     return null;
   }
 }
 
 apiClient.interceptors.request.use((config) => {
   const requestConfig = config as RetryableRequestConfig;
+  if (requestConfig._sessionScope !== undefined && requestConfig._sessionScope !== getSessionScope()) throw new Error('Account session changed');
+  requestConfig._sessionScope = getSessionScope();
 
   if (shouldAttachToken(requestConfig)) {
     const accessToken = getAccessToken();
@@ -125,7 +129,10 @@ apiClient.interceptors.request.use((config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if ((response.config as RetryableRequestConfig)._sessionScope !== getSessionScope()) throw new Error('Account session changed');
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
@@ -133,6 +140,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    if (originalRequest._sessionScope !== getSessionScope()) return Promise.reject(new Error('Account session changed'));
     const status = error.response?.status;
     const requestPath = originalRequest.url ?? '';
     const canRetry = status === 401 && !originalRequest._retry && !publicAuthPaths.has(requestPath);

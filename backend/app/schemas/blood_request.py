@@ -63,6 +63,7 @@ class BloodRequestRead(BaseModel):
     is_archived: bool
     created_at: datetime
     updated_at: datetime
+    matching_notice: str | None = None
     donor_response_count: int = 0
     appointment_count: int = 0
     model_config = {"from_attributes": True}

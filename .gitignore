@@ -13,3 +13,8 @@ backend/private_uploads/
 .DS_Store
 .idea/
 *.log
+
+.next-qa/
+.next-build-check/
+playwright-report/
+test-results/

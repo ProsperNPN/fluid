@@ -11,6 +11,7 @@ class TokenPayload(BaseModel):
     exp: int
     iat: int
     jti: str | None = None
+    sid: str | None = None
 
 
 class TokenPair(BaseModel):

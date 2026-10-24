@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Bell, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePortalQuery } from "@/hooks/use-portal-query";
-import { getApiErrorMessage } from "@/lib/api";
+import { apiClient, getApiErrorMessage } from "@/lib/api";
 import {
   listNotifications,
   markNotificationRead,
@@ -24,6 +24,11 @@ export function NotificationCenter({ preview = false }: { preview?: boolean }) {
     [unread, page],
   );
   const query = usePortalQuery(loader);
+  const readinessLoader = useCallback(async () => {
+    if (!window.location.pathname.startsWith("/donor")) return null;
+    return (await apiClient.get<{ reasons: string[]; notice: string }>("/api/v1/donor-matches/readiness")).data;
+  }, []);
+  const readiness = usePortalQuery(readinessLoader);
   async function action(operation: () => Promise<unknown>) {
     setBusy(true);
     try {
@@ -53,6 +58,12 @@ export function NotificationCenter({ preview = false }: { preview?: boolean }) {
           preview ? "Emergency invitations near you" : "Notification center"
         }
       >
+        {!preview && readiness.data && (
+          <aside className="portal-policy-note" aria-label="Matching and alert status">
+            {readiness.data.reasons.map(reason => <p key={reason}>{reason}</p>)}
+            <p>{readiness.data.notice}</p>
+          </aside>
+        )}
         {!preview && (
           <div className="flex flex-wrap gap-3 mb-4">
             <button

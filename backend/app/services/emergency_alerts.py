@@ -33,8 +33,8 @@ async def request_changed(db, request):
 async def hospital_notice(db, request, title, message):
     members = (await db.execute(select(HospitalMembership.user_id).where(
         HospitalMembership.hospital_profile_id == request.hospital_profile_id,
-        HospitalMembership.is_active.is_(True)))).scalars().all()
-    for user_id in set(members) | {request.created_by_user_id}:
+        HospitalMembership.is_active.is_(True), HospitalMembership.role.in_(["hospital_admin", "blood_bank_manager", "hospital_staff"])))).scalars().all()
+    for user_id in set(members):
         db.add(Notification(user_id=user_id, type="emergency_update", title=title,
             message=message, level="info", related_path="/hospital/emergencies"))
 
